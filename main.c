@@ -12,16 +12,16 @@
 
 #include "rtv1.h"
 
-void	pixel_to_img(t_mlx *new, int x, int y, int color)
+void	pixel_to_img(t_mlx *new, int x, int y, t_color color)
 {
 	int		i;
 
 	i = (x * 4) + (y * new->size_line);
-	if (i > 0 && color >= 0)
+	if (i > 0)
 	{
-		new->data[i++] = color & 0xFF;
-		new->data[i++] = (color >> 8) & 0xFF;
-		new->data[i] = (color >> 16) & 0xFF;
+		new->data[i++] = (unsigned char)MIN(color.blue*255.0f, 255.0f);
+		new->data[i++] = (unsigned char)MIN(color.green*255.0f, 255.0f);;
+		new->data[i] = (unsigned char)MIN(color.red*255.0f, 255.0f);;
 	}
 }
 
@@ -50,18 +50,41 @@ t_vector	vect_sub(t_vector *v1, t_vector *v2)
 	return (res);
 }
 
+t_vector	vect_add(t_vector *v1, t_vector *v2)
+{
+	t_vector	res;
+
+	res.x = v1->x + v2->x;
+	res.y = v1->y + v2->y;
+	res.z = v1->z + v2->z;
+	return (res);
+}
+
+t_vector	vect_scale(float scale, t_vector *v)
+{
+	t_vector	res;
+
+	res.x = v->x * scale;
+	res.y = v->y * scale;
+	res.z = v->z * scale;
+	return (res);
+}
+
 float		vect_dot(t_vector *v1, t_vector *v2)
 {
 	return (v1->x * v2->x + v1->y * v2->y + v1->z * v2->z);
 }
 
-int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere)
+int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, float *t)
 {
 	t_vector	dist;
 	float		a;
 	float		b;
 	float		c;
 	float		discr;
+	float		discr_sq;
+	float		p0;
+	float		p1;
 
 	dist = vect_sub(&ray->start, &sphere->pos);
 	a = vect_dot(&ray->dir, &ray->dir);
@@ -72,22 +95,44 @@ int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere)
 	if (discr < 0)
 		return (0);
 	else
-		return (1);
+	{
+		discr_sq = sqrtf(discr);
+		p0 = ((-b + discr_sq) / 2);
+		p1 = ((-b - discr_sq) / 2);
+
+		if (p0 > p1)
+			p0 = p1;
+
+		if ((p0 > 0.001f) && (p0 < *t))
+		{
+			*t = p0;
+			return (1);
+		}
+		else
+			return (0);
+	}
 }
 
 void		draw_sphere(t_env *obj)
 {
 	int			hit, x, y;
+	float		t;
 
 	obj->sphere = (t_sphere*)malloc(sizeof(t_sphere) * 1);
 
-	obj->sphere[0].pos.x = 20;
-	obj->sphere[0].pos.y = 20;
-	obj->sphere[0].pos.z = 20;
+	obj->sphere[0].pos.x = 200;
+	obj->sphere[0].pos.y = 200;
+	obj->sphere[0].pos.z = 100;
 
-	obj->sphere[0].radius = 10;
+	obj->sphere[0].radius = 100;
 
 	obj->ray.start.z = 0;
+
+	t_color		white;
+
+	white.red = 1;
+	white.green = 0;
+	white.blue = 0;
 
 	hit = 0;
 	y = 0;
@@ -97,9 +142,10 @@ void		draw_sphere(t_env *obj)
 		obj->ray.start.y = y;
 		while (x < W_WIDTH)
 		{
+			t = 20000.0f;
 			obj->ray.start.x = x;
-			if (ray_intersect_sphere(&obj->ray, &obj->sphere[0]))
-				pixel_to_img(&obj->mlx, x, y, 0xFFFFFF);
+			if (ray_intersect_sphere(&obj->ray, &obj->sphere[0], &t))
+				pixel_to_img(&obj->mlx, x, y, white);
 			x++;
 		}
 		y++;

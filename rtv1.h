@@ -22,6 +22,7 @@
 
 # define W_HEIGHT 600
 # define W_WIDTH 800
+# define MIN(a, b) (((a) < (b)) ? (a) : (b))
 # define RANGE(x, a, b, mn, mx) (((b)-(a)) * ((x)-(mn)) / ((mx)-(mn))) + (a)
 
 typedef struct	s_vector
@@ -30,6 +31,25 @@ typedef struct	s_vector
 	float		y;
 	float		z;
 }				t_vector;
+
+typedef struct	s_color
+{
+	float		red;
+	float		green;
+	float		blue;
+}				t_color;
+
+typedef struct	s_mat
+{
+	t_color		diffse;
+	float		reflextion;
+}				t_mat;
+
+typedef struct	s_light
+{
+	t_vector	pos;
+	t_color		intensity;
+}				t_light;
 
 typedef struct	s_ray
 {
@@ -41,6 +61,7 @@ typedef struct	s_sphere
 {
 	t_vector	pos;
 	float		radius;
+	int			mat;
 }				t_sphere;
 
 typedef struct		s_mlx
@@ -58,6 +79,7 @@ typedef struct		s_env
 {
 	// t_pressed		keys;
 	t_sphere		*sphere;
+	t_light			*lights;
 	t_mlx			mlx;
 	t_ray			ray;
 	int				sc;
