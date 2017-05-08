@@ -20,4 +20,47 @@
 # include "minilibx/mlx.h"
 # include "libftprintf/printf.h"
 
+# define W_HEIGHT 600
+# define W_WIDTH 800
+# define RANGE(x, a, b, mn, mx) (((b)-(a)) * ((x)-(mn)) / ((mx)-(mn))) + (a)
+
+typedef struct	s_vector
+{
+	float		x;
+	float		y;
+	float		z;
+}				t_vector;
+
+typedef struct	s_ray
+{
+	t_vector	start;
+	t_vector	dir;
+}				t_ray;
+
+typedef struct	s_sphere
+{
+	t_vector	pos;
+	float		radius;
+}				t_sphere;
+
+typedef struct		s_mlx
+{
+	void			*mlx;
+	void			*win;
+	void			*img;
+	char			*data;
+	int				bits;
+	int				size_line;
+	int				endian;
+}					t_mlx;
+
+typedef struct		s_env
+{
+	// t_pressed		keys;
+	t_sphere		*sphere;
+	t_mlx			mlx;
+	t_ray			ray;
+	int				sc;
+}					t_env;
+
 #endif
