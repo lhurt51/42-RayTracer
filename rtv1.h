@@ -22,8 +22,18 @@
 
 # define W_HEIGHT 600
 # define W_WIDTH 800
+# define RAY_DEPTH 15
 # define MIN(a, b) (((a) < (b)) ? (a) : (b))
 # define RANGE(x, a, b, mn, mx) (((b)-(a)) * ((x)-(mn)) / ((mx)-(mn))) + (a)
+
+typedef struct		s_pressed
+{
+	int				shift;
+	int				a;
+	int				d;
+	int				w;
+	int				s;
+}					t_pressed;
 
 typedef struct	s_vector
 {
@@ -41,8 +51,8 @@ typedef struct	s_color
 
 typedef struct	s_mat
 {
-	t_color		diffse;
-	float		reflextion;
+	t_color		diffuse;
+	float		reflection;
 }				t_mat;
 
 typedef struct	s_light
@@ -66,6 +76,7 @@ typedef struct	s_sphere
 
 typedef struct		s_mlx
 {
+	t_pressed		keys;
 	void			*mlx;
 	void			*win;
 	void			*img;
@@ -77,12 +88,14 @@ typedef struct		s_mlx
 
 typedef struct		s_env
 {
-	// t_pressed		keys;
-	t_sphere		*sphere;
-	t_light			*lights;
 	t_mlx			mlx;
 	t_ray			ray;
-	int				sc;
+	t_mat			*materials;
+	t_light			*lights;
+	t_sphere		*spheres;
+	unsigned		mc;
+	unsigned		lc;
+	unsigned		sc;
 }					t_env;
 
 #endif
