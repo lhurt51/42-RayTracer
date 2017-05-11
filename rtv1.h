@@ -22,8 +22,10 @@
 
 # define W_HEIGHT 600
 # define W_WIDTH 800
-# define RAY_DEPTH 15
+# define RAY_DEPTH 10
 # define MIN(a, b) (((a) < (b)) ? (a) : (b))
+# define MAX(a, b) (((a) > (b)) ? (a) : (b))
+# define INVSQRTF(x) (1.0f / sqrtf(x))
 # define RANGE(x, a, b, mn, mx) (((b)-(a)) * ((x)-(mn)) / ((mx)-(mn))) + (a)
 
 typedef struct		s_pressed
@@ -37,22 +39,24 @@ typedef struct		s_pressed
 
 typedef struct	s_vector
 {
-	float		x;
-	float		y;
-	float		z;
+	double		x;
+	double		y;
+	double		z;
 }				t_vector;
 
 typedef struct	s_color
 {
-	float		red;
-	float		green;
-	float		blue;
+	double		red;
+	double		green;
+	double		blue;
 }				t_color;
 
 typedef struct	s_mat
 {
 	t_color		diffuse;
-	float		reflection;
+	t_color		specular;
+	double		reflection;
+	double		power;
 }				t_mat;
 
 typedef struct	s_light
@@ -70,7 +74,7 @@ typedef struct	s_ray
 typedef struct	s_sphere
 {
 	t_vector	pos;
-	float		radius;
+	double		radius;
 	int			mat;
 }				t_sphere;
 
@@ -91,8 +95,13 @@ typedef struct		s_env
 	t_mlx			mlx;
 	t_ray			ray;
 	t_mat			*materials;
+	t_mat			cur_mat;
 	t_light			*lights;
+	t_light			cur_light;
 	t_sphere		*spheres;
+	int				cur_sphere;
+	t_vector		norm;
+	double			coef;
 	unsigned		mc;
 	unsigned		lc;
 	unsigned		sc;
