@@ -35,6 +35,9 @@ LFLAG =		-L libftprintf/ -lft
 NAME =		RTv1
 
 SRCS =		main.c \
+			matfunc.c \
+			matfunc1.c \
+			matrot.c \
 
 FDIR = 		frame/
 

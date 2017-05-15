@@ -168,6 +168,18 @@ float		vect_dot(t_vector *v1, t_vector *v2)
 	return (v1->x * v2->x + v1->y * v2->y + v1->z * v2->z);
 }
 
+double		vect_norm(t_vector *v)
+{
+	double		dist;
+	double		tmp;
+
+	if ((dist = vect_dot(v, v)) == 0.0f)
+		return (dist);
+	tmp = INVSQRTF(dist);
+	*v = vect_scale(tmp, v);
+	return (dist);
+}
+
 int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, double *t)
 {
 	t_vector	dist;
@@ -180,7 +192,7 @@ int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, double *t)
 	rtn = 0;
 	dist = vect_sub(&sphere->pos, &ray->start);
 	b = vect_dot(&ray->dir, &dist);
-	discr = b * b - vect_dot(&dist, &dist) + sphere->radius * sphere->radius;
+	discr = SQ(b) - vect_dot(&dist, &dist) + SQ(sphere->radius);
 	if (discr < 0.0f)
 		return (rtn);
 	t0 = (b - sqrtf(discr));
@@ -196,6 +208,32 @@ int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, double *t)
 		rtn = 1;
 	}
 	return (rtn);
+}
+
+int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t)
+{
+	t_vector	dist;
+	double		b;
+	double		discr;
+	double		t0;
+	double		t1;
+	double		answ;
+
+	// Need to use the rotation of the cylinder it is seg faulting right now
+	dist = vect_sub(&ray->start, &c->pos);
+	b = 2 * vect_dot(&ray->dir, &dist);
+	discr = SQ(b) - 4 * vect_dot(&ray->dir, &ray->dir)
+		* (vect_dot(&dist, &dist) + SQ(c->radius));
+	answ = (-b + sqrtf(discr)) / (2 * vect_dot(&ray->dir, &ray->dir));
+	if (discr > 0.0f)
+	{
+		t0 = (-b - sqrtf(discr)) / (2 * vect_dot(&ray->dir, &ray->dir));
+		t1 = (-b + sqrtf(discr)) / (2 * vect_dot(&ray->dir, &ray->dir));
+		answ = ((MIN(t1, t0) < 0) ^ 0 ? MAX(t1, t0) : MIN(t1, t0));
+	}
+	if ((discr >= 0) && (answ > 0.1f) && (answ < *t))
+		*t = answ;
+	return (*t == answ);
 }
 
 t_color		apply_specular(t_env *obj, t_ray light_ray, double light_proj)
@@ -235,8 +273,8 @@ void		apply_reflection(t_env *obj, t_vector new_start)
 
 void		correct_gamma(t_color *color)
 {
-	/* gamma correction */
-	double invgamma; //Fixed value from sRGB standard
+	//Fixed gamma value from sRGB standard
+	double invgamma;
 
 	invgamma = 0.45f;
 	color->blue = powf(color->blue, invgamma);
@@ -248,7 +286,7 @@ void		handle_light(t_env *obj, t_color *color, t_vector new_start)
 {
 	t_ray		light_ray;
 	t_color		tmp_color;
-	double		lambert, dist, light_proj, t;
+	double		lambert, light_proj, t;
 	int			shadow;
 	unsigned	i, j;
 
@@ -260,15 +298,17 @@ void		handle_light(t_env *obj, t_color *color, t_vector new_start)
 		light_ray.dir = vect_sub(&obj->cur_light.pos, &new_start);
 		if ((light_proj = vect_dot(&light_ray.dir, &obj->norm)) > 0.0f)
 		{
-			if ((dist = vect_dot(&light_ray.dir, &light_ray.dir)) != 0.0f)
+			if ((t = vect_norm(&light_ray.dir)))
 			{
-				light_ray.dir = vect_scale(INVSQRTF(dist), &light_ray.dir);
-				light_proj = INVSQRTF(dist) * light_proj;
-				t = dist;
+				light_proj = INVSQRTF(t) * light_proj;
 				j = 0;
 				while (j < obj->sc)
 					if ((shadow = ray_intersect_sphere(&light_ray, &obj->spheres[j++], &t)))
 						break;
+				// j = 0;
+				// while (j < obj->cc)
+				// 	if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t)))
+				// 		break;
 				if (!shadow)
 				{
 					lambert = vect_dot(&light_ray.dir, &obj->norm) * obj->coef;
@@ -294,25 +334,36 @@ void		check_norm(t_env *obj, t_color *color, t_vector new_start)
 int			hit_obj(t_env *obj, t_color *color, t_vector *new_start, double t)
 {
 	t_vector	scaled;
-	double		tmp;
+	// double		tmp;
 
+	// Need to add a camera position and translation
+	// Need to thin out repeated code and make another function
 	if (obj->cur_sphere != -1)
 	{
 		scaled = vect_scale(t, &obj->ray.dir);
 		*new_start = vect_add(&obj->ray.start, &scaled);
 		obj->norm = vect_sub(new_start, &obj->spheres[obj->cur_sphere].pos);
-		if ((tmp = vect_dot(&obj->norm, &obj->norm)) == 0.0f)
+		if (!vect_norm(&obj->norm))
 			return (0);
-		tmp = INVSQRTF(tmp);
-		obj->norm = vect_scale(tmp, &obj->norm);
 		obj->cur_mat = obj->materials[obj->spheres[obj->cur_sphere].mat];
 	}
+	// if (obj->cur_cylinder != -1)
+	// {
+	// 	scaled = vect_scale(t, &obj->ray.dir);
+	// 	*new_start = vect_add(&obj->ray.start, &scaled);
+	// 	printf("start: x.%f, y.%f, z.%f\n", new_start->x, new_start->y, new_start->z);
+	// 	obj->norm = vect_sub(&obj->ray.start, &obj->cylinders[obj->cur_cylinder].pos);
+	// 	// printf("norm: x.%f, y.%f, z.%f\n", obj->norm.x, obj->norm.y, obj->norm.z);
+	// 	if (!vect_norm(&obj->norm))
+	// 		return (0);
+	// 	obj->cur_mat = obj->materials[obj->cylinders[obj->cur_cylinder].mat];
+	// }
 	else
 	{
 		/* No hit - add background */
 		t_color test = col_create(0.05,0.05,0.22);
-		t_color tmp_c = col_mul_coef(&test, obj->coef);
-		*color = col_add(color, &tmp_c);
+		test = col_mul_coef(&test, obj->coef);
+		*color = col_add(color, &test);
 		return (0);
 	}
 	return (1);
@@ -332,12 +383,20 @@ void		ray_tracing(t_env *obj, t_color *color)
 		obj->cur_sphere = -1;
 
 		i = 0;
+		// Search for ray intersection with obj in env
 		while (i < obj->sc)
 		{
 			if (ray_intersect_sphere(&obj->ray, &obj->spheres[i], &t))
 				obj->cur_sphere = i;
 			i++;
 		}
+		// i = 0;
+		// while (i < obj->cc)
+		// {
+		// 	if (ray_intersect_cylinder(&obj->ray, &obj->cylinders[i], &t))
+		// 		obj->cur_cylinder = i;
+		// 	i++;
+		// }
 		if (!hit_obj(obj, color, &new_start, t))
 			break;
 		check_norm(obj, color, new_start);
@@ -417,6 +476,13 @@ void		setup_struct(t_env *obj)
 	obj->spheres[2].pos = vect_create(600, 245, 120);
 	obj->spheres[2].radius = 100;
 	obj->spheres[2].mat = 2;
+
+	obj->cc = 3;
+	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cc);
+
+	obj->cylinders[1].pos = vect_create(300, 600, 0);
+	obj->cylinders[1].radius = 100;
+	obj->cylinders[1].mat = 1;
 
 	obj->lc = 2;
 	obj->lights = (t_light*)malloc(sizeof(t_light) * obj->lc);

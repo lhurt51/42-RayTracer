@@ -25,8 +25,17 @@
 # define RAY_DEPTH 10
 # define MIN(a, b) (((a) < (b)) ? (a) : (b))
 # define MAX(a, b) (((a) > (b)) ? (a) : (b))
+# define SQ(x) (x * x)
 # define INVSQRTF(x) (1.0f / sqrtf(x))
 # define RANGE(x, a, b, mn, mx) (((b)-(a)) * ((x)-(mn)) / ((mx)-(mn))) + (a)
+
+enum				e_obj
+{
+					NONE,
+					SPHERE,
+					CYLINDER,
+					LIGHT
+};
 
 typedef struct		s_pressed
 {
@@ -78,6 +87,14 @@ typedef struct	s_sphere
 	int			mat;
 }				t_sphere;
 
+typedef struct	s_cylinder
+{
+	t_vector	pos;
+	t_vector	rot;
+	double		radius;
+	int			mat;
+}				t_cylinder;
+
 typedef struct		s_mlx
 {
 	t_pressed		keys;
@@ -90,6 +107,15 @@ typedef struct		s_mlx
 	int				endian;
 }					t_mlx;
 
+// Need to add a camera input system using Matrix multiplication
+typedef struct		s_scene
+{
+	t_vector		cam_pos;
+	t_vector		cam_rot;
+	float			g_mat[4][4];
+}					t_scene;
+
+// Need to reorganize my structures delete whats not neccissary such as the ray and coef and norm
 typedef struct		s_env
 {
 	t_mlx			mlx;
@@ -100,11 +126,22 @@ typedef struct		s_env
 	t_light			cur_light;
 	t_sphere		*spheres;
 	int				cur_sphere;
+	t_cylinder		*cylinders;
+	int				cur_cylinder;
 	t_vector		norm;
 	double			coef;
 	unsigned		mc;
 	unsigned		lc;
 	unsigned		sc;
+	unsigned		cc;
 }					t_env;
+
+void	mat_identity(float mat[4][4]);
+void	mat_copy(float source[4][4], float dest[4][4]);
+void	mat_mult(float mata[4][4], float matb[4][4], float dest[4][4]);
+void	mat_translate(float matrix[4][4], float tx, float ty, float tz);
+void	mat_scale(float matrix[4][4], float sx, float sy, float sz);
+void	mat_rotate(float matrix[4][4], float ax, float ay, float az);
+void	vec_mult_mat(t_vector *source, float mat[4][4], t_vector *dest);
 
 #endif
