@@ -223,6 +223,8 @@ int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, double *t)
 int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t)
 {
 	t_vector	dist;
+	t_vector	tmp;
+	t_vector	cr;
 	double		b;
 	double		discr;
 	double		t0;
@@ -230,15 +232,19 @@ int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t)
 	double		answ;
 
 	// Need to use the rotation of the cylinder it is seg faulting right now
+	cr = vect_scale(vect_dot(&ray->dir, &c->rot), &c->rot);
+	cr = vect_sub(&ray->dir, &cr);
 	dist = vect_sub(&ray->start, &c->pos);
-	b = 2 * vect_dot(&ray->dir, &dist);
-	discr = SQ(b) - 4 * vect_dot(&ray->dir, &ray->dir)
-		* (vect_dot(&dist, &dist) + SQ(c->radius));
-	answ = (-b + sqrtf(discr)) / (2 * vect_dot(&ray->dir, &ray->dir));
+	tmp = vect_scale(vect_dot(&dist, &c->rot), &c->rot);
+	dist = vect_sub(&dist, &tmp);
+	b = 2 * vect_dot(&cr, &dist);
+	discr = SQ(b) - 4 * vect_dot(&cr, &cr)
+		* (vect_dot(&dist, &dist) - SQ(c->radius));
+	answ = (-b + sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
 	if (discr > 0.0f)
 	{
-		t0 = (-b - sqrtf(discr)) / (2 * vect_dot(&ray->dir, &ray->dir));
-		t1 = (-b + sqrtf(discr)) / (2 * vect_dot(&ray->dir, &ray->dir));
+		t0 = (-b - sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
+		t1 = (-b + sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
 		answ = ((MIN(t1, t0) < 0) ^ 0 ? MAX(t1, t0) : MIN(t1, t0));
 	}
 	if ((discr >= 0) && (answ > 0.1f) && (answ < *t))
@@ -269,14 +275,14 @@ t_color		apply_specular(t_env *obj, t_ray light_ray, double light_proj)
 	return (rtn);
 }
 
-void		apply_reflection(t_env *obj, t_vector new_start)
+void		apply_reflection(t_env *obj)
 {
 	t_vector	rtn;
 	double		reflect;
 
 	obj->coef *= obj->cur_mat.reflection;
 	reflect = 2.0f * vect_dot(&obj->ray.dir, &obj->norm);
-	obj->ray.start = new_start;
+	// obj->ray.start = new_start;
 	rtn = vect_scale(reflect, &obj->norm);
 	obj->ray.dir = vect_sub(&obj->ray.dir, &rtn);
 }
@@ -292,7 +298,7 @@ void		correct_gamma(t_color *color)
 	color->green = powf(color->green, invgamma);
 }
 
-void		handle_light(t_env *obj, t_color *color, t_vector new_start)
+void		handle_light(t_env *obj, t_color *color)
 {
 	t_ray		light_ray;
 	t_color		tmp_color;
@@ -301,11 +307,11 @@ void		handle_light(t_env *obj, t_color *color, t_vector new_start)
 	unsigned	i, j;
 
 	i = 0;
-	light_ray.start = new_start;
+	light_ray.start = obj->ray.start;
 	while (i < obj->lc)
 	{
 		obj->cur_light = obj->lights[i++];
-		light_ray.dir = vect_sub(&obj->cur_light.pos, &new_start);
+		light_ray.dir = vect_sub(&obj->cur_light.pos, &obj->ray.start);
 		if ((light_proj = vect_dot(&light_ray.dir, &obj->norm)) > 0.0f)
 		{
 			if ((t = vect_norm(&light_ray.dir)))
@@ -315,10 +321,10 @@ void		handle_light(t_env *obj, t_color *color, t_vector new_start)
 				while (j < obj->sc)
 					if ((shadow = ray_intersect_sphere(&light_ray, &obj->spheres[j++], &t)))
 						break;
-				// j = 0;
-				// while (j < obj->cc)
-				// 	if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t)))
-				// 		break;
+				j = 0;
+				while (j < obj->cc)
+					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t)))
+						break;
 				if (!shadow)
 				{
 					lambert = vect_dot(&light_ray.dir, &obj->norm) * obj->coef;
@@ -333,41 +339,41 @@ void		handle_light(t_env *obj, t_color *color, t_vector new_start)
 	}
 }
 
-void		check_norm(t_env *obj, t_color *color, t_vector new_start)
+void		check_norm(t_env *obj, t_color *color)
 {
 	if (vect_dot(&obj->norm, &obj->ray.dir) > 0.0f)
 		obj->norm = vect_scale(-1.0f, &obj->norm);
 	else
-		handle_light(obj, color, new_start);
+		handle_light(obj, color);
 }
 
-int			hit_obj(t_env *obj, t_color *color, t_vector *new_start, double t)
+int			hit_obj(t_env *obj, t_color *color, double t)
 {
 	t_vector	scaled;
 	// double		tmp;
 
 	// Need to add a camera position and translation
 	// Need to thin out repeated code and make another function
+	scaled = vect_scale(t, &obj->ray.dir);
+	obj->ray.start = vect_add(&obj->ray.start, &scaled);
 	if (obj->cur_sphere != -1)
 	{
-		scaled = vect_scale(t, &obj->ray.dir);
-		*new_start = vect_add(&obj->ray.start, &scaled);
-		obj->norm = vect_sub(new_start, &obj->spheres[obj->cur_sphere].pos);
+		obj->norm = vect_sub(&obj->ray.start, &obj->spheres[obj->cur_sphere].pos);
 		if (!vect_norm(&obj->norm))
 			return (0);
 		obj->cur_mat = obj->materials[obj->spheres[obj->cur_sphere].mat];
 	}
-	// if (obj->cur_cylinder != -1)
-	// {
-	// 	scaled = vect_scale(t, &obj->ray.dir);
-	// 	*new_start = vect_add(&obj->ray.start, &scaled);
-	// 	// printf("start: x.%f, y.%f, z.%f\n", new_start->x, new_start->y, new_start->z);
-	// 	obj->norm = vect_sub(&obj->ray.start, &obj->cylinders[obj->cur_cylinder].pos);
-	// 	// printf("norm: x.%f, y.%f, z.%f\n", obj->norm.x, obj->norm.y, obj->norm.z);
-	// 	if (!vect_norm(&obj->norm))
-	// 		return (0);
-	// 	obj->cur_mat = obj->materials[obj->cylinders[obj->cur_cylinder].mat];
-	// }
+	else if (obj->cur_cylinder != -1)
+	{
+		t_vector	projection;
+
+		obj->norm = vect_sub(&obj->ray.start, &obj->cylinders[obj->cur_cylinder].pos);
+		projection = vect_scale(vect_dot(&obj->norm, &obj->cylinders[obj->cur_cylinder].rot), &obj->cylinders[obj->cur_cylinder].rot);
+		obj->norm = vect_sub(&obj->norm, &projection);
+		if (!vect_norm(&obj->norm))
+			return (0);
+		obj->cur_mat = obj->materials[obj->cylinders[obj->cur_cylinder].mat];
+	}
 	else
 	{
 		/* No hit - add background */
@@ -381,7 +387,6 @@ int			hit_obj(t_env *obj, t_color *color, t_vector *new_start, double t)
 
 void		ray_tracing(t_env *obj, t_color *color)
 {
-	t_vector		new_start;
 	int				level;
 	unsigned		i;
 	double			t;
@@ -391,6 +396,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 	{
 		t = 20000.0f;
 		obj->cur_sphere = -1;
+		obj->cur_cylinder = -1;
 
 		i = 0;
 		// Search for ray intersection with obj in env
@@ -400,17 +406,20 @@ void		ray_tracing(t_env *obj, t_color *color)
 				obj->cur_sphere = i;
 			i++;
 		}
-		// i = 0;
-		// while (i < obj->cc)
-		// {
-		// 	if (ray_intersect_cylinder(&obj->ray, &obj->cylinders[i], &t))
-		// 		obj->cur_cylinder = i;
-		// 	i++;
-		// }
-		if (!hit_obj(obj, color, &new_start, t))
+		i = 0;
+		while (i < obj->cc)
+		{
+			if (ray_intersect_cylinder(&obj->ray, &obj->cylinders[i], &t))
+			{
+				obj->cur_sphere = -1;
+				obj->cur_cylinder = i;
+			}
+			i++;
+		}
+		if (!hit_obj(obj, color, t))
 			break;
-		check_norm(obj, color, new_start);
-		apply_reflection(obj, new_start);
+		check_norm(obj, color);
+		apply_reflection(obj);
 		level++;
 	}
 }
@@ -492,15 +501,15 @@ void		setup_struct(t_env *obj)
 
 	tmp = vect_create(0, -1, 0);
 	mat_identity(mat);
-	mat_rotate(mat, 0, 0, -45 * M_PI / 180);
+	mat_rotate(mat, 0, 0, -(45 * M_PI / 180));
 
 	obj->cc = 1;
 	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cc);
-	
-	obj->cylinders[0].pos = vect_create(300, 600, 0);
+
+	obj->cylinders[0].pos = vect_create(400, 500, 300);
 	vec_mult_mat(&tmp, mat, &obj->cylinders[0].rot);
 	print_vector(obj->cylinders[0].rot);
-	obj->cylinders[0].radius = 100;
+	obj->cylinders[0].radius = 50;
 	obj->cylinders[0].mat = 1;
 
 	obj->lc = 2;
@@ -515,10 +524,10 @@ void		setup_struct(t_env *obj)
 
 void		create_win(t_env *obj)
 {
+	setup_struct(obj);
 	obj->mlx.mlx = mlx_init();
 	obj->mlx.win = mlx_new_window(obj->mlx.mlx, W_WIDTH, W_HEIGHT, "Wolf3D");
 	obj->mlx.img = mlx_new_image(obj->mlx.mlx, W_WIDTH, W_HEIGHT);
-	setup_struct(obj);
 	// run_img(obj);
 	mlx_hook(obj->mlx.win, 17, 0, exit_hook, obj);
 	mlx_hook(obj->mlx.win, 2, 0, my_key_press, obj);
