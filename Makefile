@@ -26,6 +26,8 @@ OPENGL =	-framework OpenGl
 
 APPKIT =	-framework AppKit
 
+MLX =		$(INC) $(LIB) $(LX) $(OPENGL) $(APPKIT)
+
 LFPFT = 	libftprintf/
 
 LIBPF =		$(LFPFT)libftprintf.a
@@ -50,7 +52,7 @@ frame:
 			@echo "$(FDIR): has been created"
 
 $(NAME): $(OBJS) $(LIBPF)
-			$(CC) $(FLAG) $(OBJS) $(LIBPF) $(INC) $(LIB) $(LX) $(OPENGL) $(APPKIT) -o $(NAME)
+			@$(CC) $(FLAG) $(OBJS) $(LIBPF) $(MLX) -o $(NAME)
 			@echo "$(NAME): has been created"
 
 frame/%.o: %.c | frame

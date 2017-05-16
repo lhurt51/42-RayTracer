@@ -41,6 +41,16 @@ int				exit_hook(t_env *obj)
 	exit(0);
 }
 
+# include <stdio.h>
+
+void	print_vector(t_vector v)
+{
+	static unsigned i = 0;
+
+	printf("Vector #%u (x.%f y.%f z.%f)\n", i, v.x, v.y, v.z);
+	i++;
+}
+
 int		my_key_press(int keycode, t_env *obj)
 {
 	if (keycode == 53)
@@ -351,7 +361,7 @@ int			hit_obj(t_env *obj, t_color *color, t_vector *new_start, double t)
 	// {
 	// 	scaled = vect_scale(t, &obj->ray.dir);
 	// 	*new_start = vect_add(&obj->ray.start, &scaled);
-	// 	printf("start: x.%f, y.%f, z.%f\n", new_start->x, new_start->y, new_start->z);
+	// 	// printf("start: x.%f, y.%f, z.%f\n", new_start->x, new_start->y, new_start->z);
 	// 	obj->norm = vect_sub(&obj->ray.start, &obj->cylinders[obj->cur_cylinder].pos);
 	// 	// printf("norm: x.%f, y.%f, z.%f\n", obj->norm.x, obj->norm.y, obj->norm.z);
 	// 	if (!vect_norm(&obj->norm))
@@ -477,12 +487,21 @@ void		setup_struct(t_env *obj)
 	obj->spheres[2].radius = 100;
 	obj->spheres[2].mat = 2;
 
-	obj->cc = 3;
-	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cc);
+	t_vector	tmp;
+	float		mat[4][4];
 
-	obj->cylinders[1].pos = vect_create(300, 600, 0);
-	obj->cylinders[1].radius = 100;
-	obj->cylinders[1].mat = 1;
+	tmp = vect_create(0, -1, 0);
+	mat_identity(mat);
+	mat_rotate(mat, 0, 0, -45 * M_PI / 180);
+
+	obj->cc = 1;
+	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cc);
+	
+	obj->cylinders[0].pos = vect_create(300, 600, 0);
+	vec_mult_mat(&tmp, mat, &obj->cylinders[0].rot);
+	print_vector(obj->cylinders[0].rot);
+	obj->cylinders[0].radius = 100;
+	obj->cylinders[0].mat = 1;
 
 	obj->lc = 2;
 	obj->lights = (t_light*)malloc(sizeof(t_light) * obj->lc);
