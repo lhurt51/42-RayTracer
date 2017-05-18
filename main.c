@@ -252,6 +252,21 @@ int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t)
 	return (*t == answ);
 }
 
+int			ray_intersect_plane(t_ray *ray, t_plane *p, double *t)
+{
+	t_vector	dist;
+	double		norm;
+	double		discr;
+	double		answ;
+
+	dist = vect_sub(&p->pos, &ray->start);
+	norm = vect_dot(&p->rot, &dist);
+	discr = vect_dot(&p->rot, &ray->dir);
+	if ((answ = norm / discr) > 0.1 && (answ < *t))
+		*t = answ;
+	return (*t == answ);
+}
+
 t_color		apply_specular(t_env *obj, t_ray light_ray, double light_proj)
 {
 	t_vector blinn_dir;
@@ -310,6 +325,7 @@ void		handle_light(t_env *obj, t_color *color)
 	light_ray.start = obj->ray.start;
 	while (i < obj->lc)
 	{
+		shadow = 0;
 		obj->cur_light = obj->lights[i++];
 		light_ray.dir = vect_sub(&obj->cur_light.pos, &obj->ray.start);
 		if ((light_proj = vect_dot(&light_ray.dir, &obj->norm)) > 0.0f)
@@ -318,12 +334,16 @@ void		handle_light(t_env *obj, t_color *color)
 			{
 				light_proj = INVSQRTF(t) * light_proj;
 				j = 0;
-				while (j < obj->sc)
+				while (j < obj->sc && !shadow)
 					if ((shadow = ray_intersect_sphere(&light_ray, &obj->spheres[j++], &t)))
 						break;
 				j = 0;
-				while (j < obj->cc)
+				while (j < obj->cc && !shadow)
 					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t)))
+						break;
+				j = 0;
+				while (j < obj->pc && !shadow)
+					if ((shadow = ray_intersect_plane(&light_ray, &obj->planes[j++], &t)))
 						break;
 				if (!shadow)
 				{
@@ -331,10 +351,10 @@ void		handle_light(t_env *obj, t_color *color)
 					color->red += lambert * obj->cur_light.intensity.red * obj->cur_mat.diffuse.red;
 					color->green += lambert * obj->cur_light.intensity.green * obj->cur_mat.diffuse.green;
 					color->blue += lambert * obj->cur_light.intensity.blue * obj->cur_mat.diffuse.blue;
+					tmp_color = apply_specular(obj, light_ray, light_proj);
+					*color = col_add(color, &tmp_color);
 				}
 			}
-			tmp_color = apply_specular(obj, light_ray, light_proj);
-			*color = col_add(color, &tmp_color);
 		}
 	}
 }
@@ -343,8 +363,7 @@ void		check_norm(t_env *obj, t_color *color)
 {
 	if (vect_dot(&obj->norm, &obj->ray.dir) > 0.0f)
 		obj->norm = vect_scale(-1.0f, &obj->norm);
-	else
-		handle_light(obj, color);
+	handle_light(obj, color);
 }
 
 int			hit_obj(t_env *obj, t_color *color, double t)
@@ -358,26 +377,35 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 	obj->ray.start = vect_add(&obj->ray.start, &scaled);
 	if (obj->cur_sphere != -1)
 	{
+		obj->cur_mat = obj->materials[obj->spheres[obj->cur_sphere].mat];
 		obj->norm = vect_sub(&obj->ray.start, &obj->spheres[obj->cur_sphere].pos);
 		if (!vect_norm(&obj->norm))
 			return (0);
-		obj->cur_mat = obj->materials[obj->spheres[obj->cur_sphere].mat];
 	}
 	else if (obj->cur_cylinder != -1)
 	{
 		t_vector	projection;
 
+		obj->cur_mat = obj->materials[obj->cylinders[obj->cur_cylinder].mat];
 		obj->norm = vect_sub(&obj->ray.start, &obj->cylinders[obj->cur_cylinder].pos);
 		projection = vect_scale(vect_dot(&obj->norm, &obj->cylinders[obj->cur_cylinder].rot), &obj->cylinders[obj->cur_cylinder].rot);
 		obj->norm = vect_sub(&obj->norm, &projection);
 		if (!vect_norm(&obj->norm))
 			return (0);
-		obj->cur_mat = obj->materials[obj->cylinders[obj->cur_cylinder].mat];
+	}
+	else if (obj->cur_plane != -1)
+	{
+		obj->cur_mat = obj->materials[obj->planes[obj->cur_plane].mat];
+		obj->norm = obj->planes[obj->cur_plane].rot;
+		if (vect_dot(&obj->ray.dir, &obj->planes[obj->cur_plane].rot) > 0.0f)
+			obj->norm = vect_scale(-1.0f, &obj->norm);
+		if (!vect_norm(&obj->norm))
+			return (0);
 	}
 	else
 	{
 		/* No hit - add background */
-		t_color test = col_create(0.05,0.05,0.22);
+		t_color test = col_create(0, 0, 0);
 		test = col_mul_coef(&test, obj->coef);
 		*color = col_add(color, &test);
 		return (0);
@@ -397,6 +425,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 		t = 20000.0f;
 		obj->cur_sphere = -1;
 		obj->cur_cylinder = -1;
+		obj->cur_plane = -1;
 
 		i = 0;
 		// Search for ray intersection with obj in env
@@ -413,6 +442,17 @@ void		ray_tracing(t_env *obj, t_color *color)
 			{
 				obj->cur_sphere = -1;
 				obj->cur_cylinder = i;
+			}
+			i++;
+		}
+		i = 0;
+		while (i < obj->pc)
+		{
+			if (ray_intersect_plane(&obj->ray, &obj->planes[i], &t))
+			{
+				obj->cur_sphere = -1;
+				obj->cur_cylinder = -1;
+				obj->cur_plane = i;
 			}
 			i++;
 		}
@@ -463,7 +503,7 @@ int			run_img(t_env *obj)
 
 void		setup_struct(t_env *obj)
 {
-	obj->mc = 3;
+	obj->mc = 4;
 	obj->materials = (t_mat*)malloc(sizeof(t_mat) * obj->mc);
 
 	obj->materials[0].diffuse = col_create(1, 0, 0);
@@ -481,10 +521,15 @@ void		setup_struct(t_env *obj)
 	obj->materials[2].reflection = 0.9;
 	obj->materials[2].power = 60;
 
+	obj->materials[3].diffuse = col_create(0.5, 0.5, 0.5);
+	obj->materials[3].specular = col_create(0.5, 0.5, 0.5);
+	obj->materials[3].reflection = 0;
+	obj->materials[3].power = 60;
+
 	obj->sc = 3;
 	obj->spheres = (t_sphere*)malloc(sizeof(t_sphere) * obj->sc);
 
-	obj->spheres[0].pos = vect_create(200, 300, 0);
+	obj->spheres[0].pos = vect_create(200, 400, 10);
 	obj->spheres[0].radius = 100;
 	obj->spheres[0].mat = 0;
 
@@ -506,19 +551,32 @@ void		setup_struct(t_env *obj)
 	obj->cc = 1;
 	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cc);
 
-	obj->cylinders[0].pos = vect_create(400, 500, 300);
+	obj->cylinders[0].pos = vect_create(200, 600, 300);
 	vec_mult_mat(&tmp, mat, &obj->cylinders[0].rot);
-	print_vector(obj->cylinders[0].rot);
-	obj->cylinders[0].radius = 50;
+	obj->cylinders[0].radius = 100;
 	obj->cylinders[0].mat = 1;
+
+	t_vector	tmp1;
+	float		mat1[4][4];
+
+	tmp1 = vect_create(0, 0, -1);
+	mat_identity(mat1);
+	mat_rotate(mat1, (92 * M_PI / 180), 0, 0);
+
+	obj->pc = 1;
+	obj->planes = (t_plane*)malloc(sizeof(t_plane) * obj->pc);
+
+	obj->planes[0].pos = vect_create(0, 550, 0);
+	vec_mult_mat(&tmp1, mat1, &obj->planes[0].rot);
+	obj->planes[0].mat = 3;
 
 	obj->lc = 2;
 	obj->lights = (t_light*)malloc(sizeof(t_light) * obj->lc);
 
-	obj->lights[0].pos = vect_create(0, 0, -300);
+	obj->lights[0].pos = vect_create(300, 300, -600);
 	obj->lights[0].intensity = col_create(1, 1, 1);
 
-	obj->lights[1].pos = vect_create(600, 0, -100);
+	obj->lights[1].pos = vect_create(500, 100, -100);
 	obj->lights[1].intensity = col_create(0.3, 0.5, 1);
 }
 

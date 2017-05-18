@@ -22,29 +22,30 @@
 
 # define W_HEIGHT 600
 # define W_WIDTH 800
-# define RAY_DEPTH 10
+# define RAY_DEPTH 15
 # define MIN(a, b) (((a) < (b)) ? (a) : (b))
 # define MAX(a, b) (((a) > (b)) ? (a) : (b))
 # define SQ(x) (x * x)
 # define INVSQRTF(x) (1.0f / sqrtf(x))
 # define RANGE(x, a, b, mn, mx) (((b)-(a)) * ((x)-(mn)) / ((mx)-(mn))) + (a)
 
-enum				e_obj
+enum			e_obj
 {
-					NONE,
-					SPHERE,
-					CYLINDER,
-					LIGHT
+				NONE,
+				SPHERE,
+				CYLINDER,
+				PLANE,
+				LIGHT
 };
 
-typedef struct		s_pressed
+typedef struct	s_pressed
 {
-	int				shift;
-	int				a;
-	int				d;
-	int				w;
-	int				s;
-}					t_pressed;
+	int			shift;
+	int			a;
+	int			d;
+	int			w;
+	int			s;
+}				t_pressed;
 
 typedef struct	s_vector
 {
@@ -95,46 +96,56 @@ typedef struct	s_cylinder
 	int			mat;
 }				t_cylinder;
 
-typedef struct		s_mlx
+typedef struct	s_plane
 {
-	t_pressed		keys;
-	void			*mlx;
-	void			*win;
-	void			*img;
-	char			*data;
-	int				bits;
-	int				size_line;
-	int				endian;
-}					t_mlx;
+	t_vector	pos;
+	t_vector	rot;
+	int			mat;
+}				t_plane;
+
+typedef struct	s_mlx
+{
+	t_pressed	keys;
+	void		*mlx;
+	void		*win;
+	void		*img;
+	char		*data;
+	int			bits;
+	int			size_line;
+	int			endian;
+}				t_mlx;
 
 // Need to add a camera input system using Matrix multiplication
-typedef struct		s_scene
+typedef struct	s_scene
 {
-	t_vector		cam_pos;
-	t_vector		cam_rot;
-	float			g_mat[4][4];
-}					t_scene;
+	t_vector	cam_pos;
+	t_vector	cam_rot;
+	float		g_mat[4][4];
+}				t_scene;
 
 // Need to reorganize my structures delete whats not neccissary such as the ray and coef and norm
-typedef struct		s_env
+typedef struct	s_env
 {
-	t_mlx			mlx;
-	t_ray			ray;
-	t_mat			*materials;
-	t_mat			cur_mat;
-	t_light			*lights;
-	t_light			cur_light;
-	t_sphere		*spheres;
-	int				cur_sphere;
-	t_cylinder		*cylinders;
-	int				cur_cylinder;
-	t_vector		norm;
-	double			coef;
-	unsigned		mc;
-	unsigned		lc;
-	unsigned		sc;
-	unsigned		cc;
-}					t_env;
+	t_mlx		mlx;
+	t_ray		ray;
+	t_mat		*materials;
+	t_mat		cur_mat;
+	t_light		*lights;
+	t_light		cur_light;
+	t_sphere	*spheres;
+	int			cur_sphere;
+	t_cylinder	*cylinders;
+	int			cur_cylinder;
+	t_plane		*planes;
+	int			cur_plane;
+	t_vector	norm;
+	double		coef;
+	unsigned	mc;
+	unsigned	lc;
+	unsigned	sc;
+	unsigned	cc;
+	unsigned	pc;
+}				t_env;
 
 void	mat_identity(float mat[4][4]);
 void	mat_copy(float source[4][4], float dest[4][4]);
