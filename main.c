@@ -252,6 +252,34 @@ int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t)
 	return (*t == answ);
 }
 
+int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t)
+{
+	t_vector	dist;
+	double		a;
+	double		b;
+	double		c;
+	double		discr;
+	double		tmp[3];
+
+	dist = vect_sub(&ray->start, &cn->pos);
+	a = vect_dot(&ray->dir, &ray->dir) - ((1 + SQ(cn->radius))) * vect_dot(&ray->dir, &cn->rot) * vect_dot(&ray->dir, &cn->rot);
+	b = 2 * (vect_dot(&ray->dir, &dist) - ((1 + SQ(cn->radius))) * vect_dot(&ray->dir, &cn->rot) * vect_dot(&dist, &cn->rot));
+	c = vect_dot(&dist, &dist) - ((1 + SQ(cn->radius))) * vect_dot(&dist, &cn->rot) * vect_dot(&dist, &cn->rot);
+	discr = SQ(b) - 4 * a * c;
+	if (discr == 0.0f)
+		tmp[2] = (-b + sqrtf(discr)) / (2 * a);
+	else if (discr > 0.0f)
+	{
+		tmp[0] = (-b + sqrtf(discr)) / (2 * a);
+		tmp[1] = (-b - sqrtf(discr)) / (2 * a);
+		tmp[2] = (tmp[0] < tmp[1]) ^ 0 ? tmp[0] : tmp[1];
+		tmp[2] = (tmp[2] < 0.0f) ? tmp[1] : tmp[2];
+	}
+	if ((tmp[2] > 0.1f) && (tmp[2] < *t))
+		*t = tmp[2];
+	return (*t == tmp[2]);
+}
+
 int			ray_intersect_plane(t_ray *ray, t_plane *p, double *t)
 {
 	t_vector	dist;
@@ -338,8 +366,12 @@ void		handle_light(t_env *obj, t_color *color)
 					if ((shadow = ray_intersect_sphere(&light_ray, &obj->spheres[j++], &t)))
 						break;
 				j = 0;
-				while (j < obj->cc && !shadow)
+				while (j < obj->cyc && !shadow)
 					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t)))
+						break;
+				j = 0;
+				while (j < obj->cnc && !shadow)
+					if ((shadow = ray_intersect_cone(&light_ray, &obj->cones[j++], &t)))
 						break;
 				j = 0;
 				while (j < obj->pc && !shadow)
@@ -393,6 +425,17 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 		if (!vect_norm(&obj->norm))
 			return (0);
 	}
+	else if (obj->cur_cone != -1)
+	{
+		t_vector		projection1;
+
+		obj->cur_mat = obj->materials[obj->cones[obj->cur_cone].mat];
+		obj->norm = vect_sub(&obj->ray.start, &obj->cones[obj->cur_cone].pos);
+		projection1 = vect_scale(vect_dot(&obj->norm, &obj->cones[obj->cur_cone].rot), &obj->cones[obj->cur_cone].rot);
+		obj->norm = vect_sub(&obj->norm, &projection1);
+		if (!vect_norm(&obj->norm))
+			return (0);
+	}
 	else if (obj->cur_plane != -1)
 	{
 		obj->cur_mat = obj->materials[obj->planes[obj->cur_plane].mat];
@@ -425,6 +468,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 		t = 20000.0f;
 		obj->cur_sphere = -1;
 		obj->cur_cylinder = -1;
+		obj->cur_cone = -1;
 		obj->cur_plane = -1;
 
 		i = 0;
@@ -436,12 +480,23 @@ void		ray_tracing(t_env *obj, t_color *color)
 			i++;
 		}
 		i = 0;
-		while (i < obj->cc)
+		while (i < obj->cyc)
 		{
 			if (ray_intersect_cylinder(&obj->ray, &obj->cylinders[i], &t))
 			{
 				obj->cur_sphere = -1;
 				obj->cur_cylinder = i;
+			}
+			i++;
+		}
+		i = 0;
+		while (i < obj->cnc)
+		{
+			if (ray_intersect_cone(&obj->ray, &obj->cones[i], &t))
+			{
+				obj->cur_sphere = -1;
+				obj->cur_cylinder = -1;
+				obj->cur_cone = i;
 			}
 			i++;
 		}
@@ -452,6 +507,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 			{
 				obj->cur_sphere = -1;
 				obj->cur_cylinder = -1;
+				obj->cur_cone = -1;
 				obj->cur_plane = i;
 			}
 			i++;
@@ -526,20 +582,16 @@ void		setup_struct(t_env *obj)
 	obj->materials[3].reflection = 0;
 	obj->materials[3].power = 60;
 
-	obj->sc = 3;
+	obj->sc = 2;
 	obj->spheres = (t_sphere*)malloc(sizeof(t_sphere) * obj->sc);
 
 	obj->spheres[0].pos = vect_create(200, 400, 10);
 	obj->spheres[0].radius = 100;
 	obj->spheres[0].mat = 0;
 
-	obj->spheres[1].pos = vect_create(400, 400 ,0);
+	obj->spheres[1].pos = vect_create(600, 245, 120);
 	obj->spheres[1].radius = 100;
-	obj->spheres[1].mat = 1;
-
-	obj->spheres[2].pos = vect_create(600, 245, 120);
-	obj->spheres[2].radius = 100;
-	obj->spheres[2].mat = 2;
+	obj->spheres[1].mat = 2;
 
 	t_vector	tmp;
 	float		mat[4][4];
@@ -548,13 +600,28 @@ void		setup_struct(t_env *obj)
 	mat_identity(mat);
 	mat_rotate(mat, 0, 0, -(45 * M_PI / 180));
 
-	obj->cc = 1;
-	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cc);
+	obj->cyc = 1;
+	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cyc);
 
 	obj->cylinders[0].pos = vect_create(200, 600, 300);
 	vec_mult_mat(&tmp, mat, &obj->cylinders[0].rot);
 	obj->cylinders[0].radius = 100;
 	obj->cylinders[0].mat = 1;
+
+	t_vector	tmp2;
+	float		mat2[4][4];
+
+	tmp = vect_create(0, -1, 0);
+	mat_identity(mat2);
+	mat_rotate(mat2, 0, 0, 0);
+
+	obj->cnc = 1;
+	obj->cones = (t_cone*)malloc(sizeof(t_cone) * obj->cnc);
+
+	obj->cones[0].pos = vect_create(400, 400, 300);
+	vec_mult_mat(&tmp2, mat2, &obj->cones[0].rot);
+	obj->cones[0].radius = 50;
+	obj->cones[0].mat = 2;
 
 	t_vector	tmp1;
 	float		mat1[4][4];

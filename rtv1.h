@@ -96,6 +96,14 @@ typedef struct	s_cylinder
 	int			mat;
 }				t_cylinder;
 
+typedef struct	s_cone
+{
+	t_vector	pos;
+	t_vector	rot;
+	double		radius;
+	int			mat;
+}				t_cone;
+
 typedef struct	s_plane
 {
 	t_vector	pos;
@@ -136,6 +144,8 @@ typedef struct	s_env
 	int			cur_sphere;
 	t_cylinder	*cylinders;
 	int			cur_cylinder;
+	t_cone		*cones;
+	int			cur_cone;
 	t_plane		*planes;
 	int			cur_plane;
 	t_vector	norm;
@@ -143,7 +153,8 @@ typedef struct	s_env
 	unsigned	mc;
 	unsigned	lc;
 	unsigned	sc;
-	unsigned	cc;
+	unsigned	cyc;
+	unsigned	cnc;
 	unsigned	pc;
 }				t_env;
 
