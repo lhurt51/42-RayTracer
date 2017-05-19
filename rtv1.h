@@ -156,6 +156,7 @@ typedef struct	s_env
 	unsigned	cyc;
 	unsigned	cnc;
 	unsigned	pc;
+	int			flip:1;
 }				t_env;
 
 void	mat_identity(float mat[4][4]);

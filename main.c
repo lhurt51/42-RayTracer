@@ -220,7 +220,7 @@ int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, double *t)
 	return (rtn);
 }
 
-int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t)
+int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t, int flip)
 {
 	t_vector	dist;
 	t_vector	tmp;
@@ -245,14 +245,14 @@ int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t)
 	{
 		t0 = (-b - sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
 		t1 = (-b + sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
-		answ = ((MIN(t1, t0) < 0) ^ 0 ? MAX(t1, t0) : MIN(t1, t0));
+		answ = ((MIN(t1, t0) < 0) ^ flip ? MAX(t1, t0) : MIN(t1, t0));
 	}
 	if ((discr >= 0) && (answ > 0.1f) && (answ < *t))
 		*t = answ;
 	return (*t == answ);
 }
 
-int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t)
+int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t, int flip)
 {
 	t_vector	dist;
 	double		a;
@@ -272,7 +272,7 @@ int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t)
 	{
 		tmp[0] = (-b + sqrtf(discr)) / (2 * a);
 		tmp[1] = (-b - sqrtf(discr)) / (2 * a);
-		tmp[2] = (tmp[0] < tmp[1]) ^ 0 ? tmp[0] : tmp[1];
+		tmp[2] = (tmp[0] < tmp[1]) ^ flip ? tmp[0] : tmp[1];
 		tmp[2] = (tmp[2] < 0.0f) ? tmp[1] : tmp[2];
 	}
 	if ((tmp[2] > 0.1f) && (tmp[2] < *t))
@@ -367,11 +367,11 @@ void		handle_light(t_env *obj, t_color *color)
 						break;
 				j = 0;
 				while (j < obj->cyc && !shadow)
-					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t)))
+					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t, obj->flip)))
 						break;
 				j = 0;
 				while (j < obj->cnc && !shadow)
-					if ((shadow = ray_intersect_cone(&light_ray, &obj->cones[j++], &t)))
+					if ((shadow = ray_intersect_cone(&light_ray, &obj->cones[j++], &t, obj->flip)))
 						break;
 				j = 0;
 				while (j < obj->pc && !shadow)
@@ -391,11 +391,15 @@ void		handle_light(t_env *obj, t_color *color)
 	}
 }
 
-void		check_norm(t_env *obj, t_color *color)
+void		check_norm(t_env *obj)
 {
 	if (vect_dot(&obj->norm, &obj->ray.dir) > 0.0f)
+	{
 		obj->norm = vect_scale(-1.0f, &obj->norm);
-	handle_light(obj, color);
+		obj->flip = 1;
+	}
+	else
+		obj->flip = 0;
 }
 
 int			hit_obj(t_env *obj, t_color *color, double t)
@@ -411,6 +415,7 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 	{
 		obj->cur_mat = obj->materials[obj->spheres[obj->cur_sphere].mat];
 		obj->norm = vect_sub(&obj->ray.start, &obj->spheres[obj->cur_sphere].pos);
+		check_norm(obj);
 		if (!vect_norm(&obj->norm))
 			return (0);
 	}
@@ -422,6 +427,7 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 		obj->norm = vect_sub(&obj->ray.start, &obj->cylinders[obj->cur_cylinder].pos);
 		projection = vect_scale(vect_dot(&obj->norm, &obj->cylinders[obj->cur_cylinder].rot), &obj->cylinders[obj->cur_cylinder].rot);
 		obj->norm = vect_sub(&obj->norm, &projection);
+		check_norm(obj);
 		if (!vect_norm(&obj->norm))
 			return (0);
 	}
@@ -433,6 +439,7 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 		obj->norm = vect_sub(&obj->ray.start, &obj->cones[obj->cur_cone].pos);
 		projection1 = vect_scale(vect_dot(&obj->norm, &obj->cones[obj->cur_cone].rot), &obj->cones[obj->cur_cone].rot);
 		obj->norm = vect_sub(&obj->norm, &projection1);
+		check_norm(obj);
 		if (!vect_norm(&obj->norm))
 			return (0);
 	}
@@ -470,6 +477,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 		obj->cur_cylinder = -1;
 		obj->cur_cone = -1;
 		obj->cur_plane = -1;
+		obj->flip = 0;
 
 		i = 0;
 		// Search for ray intersection with obj in env
@@ -482,7 +490,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 		i = 0;
 		while (i < obj->cyc)
 		{
-			if (ray_intersect_cylinder(&obj->ray, &obj->cylinders[i], &t))
+			if (ray_intersect_cylinder(&obj->ray, &obj->cylinders[i], &t, obj->flip))
 			{
 				obj->cur_sphere = -1;
 				obj->cur_cylinder = i;
@@ -492,7 +500,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 		i = 0;
 		while (i < obj->cnc)
 		{
-			if (ray_intersect_cone(&obj->ray, &obj->cones[i], &t))
+			if (ray_intersect_cone(&obj->ray, &obj->cones[i], &t, obj->flip))
 			{
 				obj->cur_sphere = -1;
 				obj->cur_cylinder = -1;
@@ -514,7 +522,8 @@ void		ray_tracing(t_env *obj, t_color *color)
 		}
 		if (!hit_obj(obj, color, t))
 			break;
-		check_norm(obj, color);
+		// check_norm(obj, color);
+		handle_light(obj, color);
 		apply_reflection(obj);
 		level++;
 	}
@@ -603,24 +612,22 @@ void		setup_struct(t_env *obj)
 	obj->cyc = 1;
 	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cyc);
 
-	obj->cylinders[0].pos = vect_create(200, 600, 300);
+	obj->cylinders[0].pos = vect_create(200, 600, 500);
 	vec_mult_mat(&tmp, mat, &obj->cylinders[0].rot);
 	obj->cylinders[0].radius = 100;
 	obj->cylinders[0].mat = 1;
 
-	t_vector	tmp2;
 	float		mat2[4][4];
 
-	tmp = vect_create(0, -1, 0);
 	mat_identity(mat2);
-	mat_rotate(mat2, 0, 0, 0);
+	mat_rotate(mat2, 0, 0, (45 * M_PI / 180));
 
 	obj->cnc = 1;
 	obj->cones = (t_cone*)malloc(sizeof(t_cone) * obj->cnc);
 
-	obj->cones[0].pos = vect_create(400, 400, 300);
-	vec_mult_mat(&tmp2, mat2, &obj->cones[0].rot);
-	obj->cones[0].radius = 50;
+	obj->cones[0].pos = vect_create(600, 400, 300);
+	vec_mult_mat(&tmp, mat2, &obj->cones[0].rot);
+	obj->cones[0].radius = 0.5;
 	obj->cones[0].mat = 2;
 
 	t_vector	tmp1;
@@ -628,7 +635,7 @@ void		setup_struct(t_env *obj)
 
 	tmp1 = vect_create(0, 0, -1);
 	mat_identity(mat1);
-	mat_rotate(mat1, (92 * M_PI / 180), 0, 0);
+	mat_rotate(mat1, (91.25 * M_PI / 180), 0, 0);
 
 	obj->pc = 1;
 	obj->planes = (t_plane*)malloc(sizeof(t_plane) * obj->pc);
@@ -643,7 +650,7 @@ void		setup_struct(t_env *obj)
 	obj->lights[0].pos = vect_create(300, 300, -600);
 	obj->lights[0].intensity = col_create(1, 1, 1);
 
-	obj->lights[1].pos = vect_create(500, 100, -100);
+	obj->lights[1].pos = vect_create(500, 100, -200);
 	obj->lights[1].intensity = col_create(0.3, 0.5, 1);
 }
 
@@ -651,7 +658,7 @@ void		create_win(t_env *obj)
 {
 	setup_struct(obj);
 	obj->mlx.mlx = mlx_init();
-	obj->mlx.win = mlx_new_window(obj->mlx.mlx, W_WIDTH, W_HEIGHT, "Wolf3D");
+	obj->mlx.win = mlx_new_window(obj->mlx.mlx, W_WIDTH, W_HEIGHT, "RTv1");
 	obj->mlx.img = mlx_new_image(obj->mlx.mlx, W_WIDTH, W_HEIGHT);
 	// run_img(obj);
 	mlx_hook(obj->mlx.win, 17, 0, exit_hook, obj);
