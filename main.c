@@ -448,7 +448,10 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 		obj->cur_mat = obj->materials[obj->planes[obj->cur_plane].mat];
 		obj->norm = obj->planes[obj->cur_plane].rot;
 		if (vect_dot(&obj->ray.dir, &obj->planes[obj->cur_plane].rot) > 0.0f)
+		{
 			obj->norm = vect_scale(-1.0f, &obj->norm);
+			obj->flip = 1;
+		}
 		if (!vect_norm(&obj->norm))
 			return (0);
 	}
@@ -522,15 +525,18 @@ void		ray_tracing(t_env *obj, t_color *color)
 		}
 		if (!hit_obj(obj, color, t))
 			break;
-		// check_norm(obj, color);
-		handle_light(obj, color);
-		apply_reflection(obj);
+		if (!obj->flip)
+		{
+			handle_light(obj, color);
+			apply_reflection(obj);
+		}
 		level++;
 	}
 }
 
 void		trace_each_pixel(t_env *obj)
 {
+	t_vector		tmp, tmp1;
 	t_color			color;
 	int				x, y;
 
@@ -541,10 +547,12 @@ void		trace_each_pixel(t_env *obj)
 		while (x < W_WIDTH)
 		{
 			obj->coef = 1.0;
-
 			color = col_create(0, 0, 0);
-			obj->ray.start = vect_create(x, y, -1000.0f);
-			obj->ray.dir = vect_create(0, 0, 1);
+			tmp = vect_create(x, y, -1000.0f);
+			obj->ray.start = obj->scene.cam_pos;
+			vec_mult_mat(&tmp, obj->scene.g_mat, &tmp1);
+			obj->ray.dir = vect_sub(&tmp1, &obj->ray.start);
+			vect_norm(&obj->ray.dir);
 			ray_tracing(obj, &color);
 			correct_gamma(&color);
 			pixel_to_img(&obj->mlx, x, y, color);
@@ -568,6 +576,14 @@ int			run_img(t_env *obj)
 
 void		setup_struct(t_env *obj)
 {
+	obj->scene.cam_pos = vect_create(0, 0, -1000);
+	obj->scene.cam_rot = vect_create(0, -150, 0);
+	obj->scene.cam_rot = vect_scale(M_PI / 180, &obj->scene.cam_rot);
+
+	mat_identity(obj->scene.g_mat);
+	mat_rotate(obj->scene.g_mat, obj->scene.cam_rot.x, obj->scene.cam_rot.y, obj->scene.cam_rot.z);
+	mat_translate(obj->scene.g_mat, obj->scene.cam_pos.x, obj->scene.cam_pos.y, obj->scene.cam_pos.z);
+
 	obj->mc = 4;
 	obj->materials = (t_mat*)malloc(sizeof(t_mat) * obj->mc);
 
@@ -625,7 +641,7 @@ void		setup_struct(t_env *obj)
 	obj->cnc = 1;
 	obj->cones = (t_cone*)malloc(sizeof(t_cone) * obj->cnc);
 
-	obj->cones[0].pos = vect_create(600, 400, 300);
+	obj->cones[0].pos = vect_create(650, 300, 400);
 	vec_mult_mat(&tmp, mat2, &obj->cones[0].rot);
 	obj->cones[0].radius = 0.5;
 	obj->cones[0].mat = 2;
@@ -635,7 +651,7 @@ void		setup_struct(t_env *obj)
 
 	tmp1 = vect_create(0, 0, -1);
 	mat_identity(mat1);
-	mat_rotate(mat1, (91.25 * M_PI / 180), 0, 0);
+	mat_rotate(mat1, -(90 * M_PI / 180), 0, 0);
 
 	obj->pc = 1;
 	obj->planes = (t_plane*)malloc(sizeof(t_plane) * obj->pc);

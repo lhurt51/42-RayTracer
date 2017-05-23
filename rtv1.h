@@ -135,6 +135,7 @@ typedef struct	s_scene
 typedef struct	s_env
 {
 	t_mlx		mlx;
+	t_scene		scene;
 	t_ray		ray;
 	t_mat		*materials;
 	t_mat		cur_mat;
