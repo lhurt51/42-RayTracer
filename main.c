@@ -31,12 +31,18 @@ int				exit_hook(t_env *obj)
 		mlx_destroy_window(obj->mlx.mlx, obj->mlx.win);
 	if (obj->mlx.img)
 		mlx_destroy_image(obj->mlx.mlx, obj->mlx.img);
-	if (obj->mc)
-		ft_memdel((void**)&obj->materials);
-	if (obj->lc)
-		ft_memdel((void**)&obj->lights);
-	if (obj->sc)
-		ft_memdel((void**)&obj->spheres);
+	if (obj->scene.obj_count.mc)
+		ft_memdel((void**)&obj->scene.objs.materials);
+	if (obj->scene.obj_count.lc)
+		ft_memdel((void**)&obj->scene.objs.lights);
+	if (obj->scene.obj_count.sc)
+		ft_memdel((void**)&obj->scene.objs.spheres);
+	if (obj->scene.obj_count.cyc)
+		ft_memdel((void**)&obj->scene.objs.cylinders);
+	if (obj->scene.obj_count.cnc)
+		ft_memdel((void**)&obj->scene.objs.cones);
+	if (obj->scene.obj_count.pc)
+		ft_memdel((void**)&obj->scene.objs.planes);
 	free(obj);
 	exit(0);
 }
@@ -305,15 +311,15 @@ t_color		apply_specular(t_env *obj, t_ray light_ray, double light_proj)
 
 	/* Blinn-Phong's Specular Lighting */
 	rtn = col_create(0, 0, 0);
-	view_proj = vect_dot(&obj->ray.dir, &obj->norm);
-	blinn_dir = vect_sub(&light_ray.dir, &obj->ray.dir);
+	view_proj = vect_dot(&obj->draw_data.ray.dir, &obj->draw_data.norm);
+	blinn_dir = vect_sub(&light_ray.dir, &obj->draw_data.ray.dir);
 	tmp = vect_dot(&blinn_dir, &blinn_dir);
 	if (tmp != 0.0f)
 	{
 		blinn = INVSQRTF(tmp) * MAX(light_proj - view_proj, 0.0f);
-		blinn = obj->coef * powf(blinn, obj->cur_mat.power);
-		rtn = col_mul_coef(&obj->cur_mat.specular, blinn);
-		rtn = col_mul(&rtn, &obj->cur_light.intensity);
+		blinn = obj->draw_data.coef * powf(blinn, obj->draw_data.cur_objs.cur_mat.power);
+		rtn = col_mul_coef(&obj->draw_data.cur_objs.cur_mat.specular, blinn);
+		rtn = col_mul(&rtn, &obj->draw_data.cur_objs.cur_light.intensity);
 	}
 	return (rtn);
 }
@@ -323,11 +329,11 @@ void		apply_reflection(t_env *obj)
 	t_vector	rtn;
 	double		reflect;
 
-	obj->coef *= obj->cur_mat.reflection;
-	reflect = 2.0f * vect_dot(&obj->ray.dir, &obj->norm);
-	// obj->ray.start = new_start;
-	rtn = vect_scale(reflect, &obj->norm);
-	obj->ray.dir = vect_sub(&obj->ray.dir, &rtn);
+	obj->draw_data.coef *= obj->draw_data.cur_objs.cur_mat.reflection;
+	reflect = 2.0f * vect_dot(&obj->draw_data.ray.dir, &obj->draw_data.norm);
+	// obj->draw_data.ray.start = new_start;
+	rtn = vect_scale(reflect, &obj->draw_data.norm);
+	obj->draw_data.ray.dir = vect_sub(&obj->draw_data.ray.dir, &rtn);
 }
 
 void		correct_gamma(t_color *color)
@@ -350,39 +356,39 @@ void		handle_light(t_env *obj, t_color *color)
 	unsigned	i, j;
 
 	i = 0;
-	light_ray.start = obj->ray.start;
-	while (i < obj->lc)
+	light_ray.start = obj->draw_data.ray.start;
+	while (i < obj->scene.obj_count.lc)
 	{
 		shadow = 0;
-		obj->cur_light = obj->lights[i++];
-		light_ray.dir = vect_sub(&obj->cur_light.pos, &obj->ray.start);
-		if ((light_proj = vect_dot(&light_ray.dir, &obj->norm)) > 0.0f)
+		obj->draw_data.cur_objs.cur_light = obj->scene.objs.lights[i++];
+		light_ray.dir = vect_sub(&obj->draw_data.cur_objs.cur_light.pos, &obj->draw_data.ray.start);
+		if ((light_proj = vect_dot(&light_ray.dir, &obj->draw_data.norm)) > 0.0f)
 		{
 			if ((t = vect_norm(&light_ray.dir)))
 			{
 				light_proj = INVSQRTF(t) * light_proj;
 				j = 0;
-				while (j < obj->sc && !shadow)
-					if ((shadow = ray_intersect_sphere(&light_ray, &obj->spheres[j++], &t)))
+				while (j < obj->scene.obj_count.sc && !shadow)
+					if ((shadow = ray_intersect_sphere(&light_ray, &obj->scene.objs.spheres[j++], &t)))
 						break;
 				j = 0;
-				while (j < obj->cyc && !shadow)
-					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->cylinders[j++], &t, obj->flip)))
+				while (j < obj->scene.obj_count.cyc && !shadow)
+					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->scene.objs.cylinders[j++], &t, obj->draw_data.flip)))
 						break;
 				j = 0;
-				while (j < obj->cnc && !shadow)
-					if ((shadow = ray_intersect_cone(&light_ray, &obj->cones[j++], &t, obj->flip)))
+				while (j < obj->scene.obj_count.cnc && !shadow)
+					if ((shadow = ray_intersect_cone(&light_ray, &obj->scene.objs.cones[j++], &t, obj->draw_data.flip)))
 						break;
 				j = 0;
-				while (j < obj->pc && !shadow)
-					if ((shadow = ray_intersect_plane(&light_ray, &obj->planes[j++], &t)))
+				while (j < obj->scene.obj_count.pc && !shadow)
+					if ((shadow = ray_intersect_plane(&light_ray, &obj->scene.objs.planes[j++], &t)))
 						break;
 				if (!shadow)
 				{
-					lambert = vect_dot(&light_ray.dir, &obj->norm) * obj->coef;
-					color->red += lambert * obj->cur_light.intensity.red * obj->cur_mat.diffuse.red;
-					color->green += lambert * obj->cur_light.intensity.green * obj->cur_mat.diffuse.green;
-					color->blue += lambert * obj->cur_light.intensity.blue * obj->cur_mat.diffuse.blue;
+					lambert = vect_dot(&light_ray.dir, &obj->draw_data.norm) * obj->draw_data.coef;
+					color->red += lambert * obj->draw_data.cur_objs.cur_light.intensity.red * obj->draw_data.cur_objs.cur_mat.diffuse.red;
+					color->green += lambert * obj->draw_data.cur_objs.cur_light.intensity.green * obj->draw_data.cur_objs.cur_mat.diffuse.green;
+					color->blue += lambert * obj->draw_data.cur_objs.cur_light.intensity.blue * obj->draw_data.cur_objs.cur_mat.diffuse.blue;
 					tmp_color = apply_specular(obj, light_ray, light_proj);
 					*color = col_add(color, &tmp_color);
 				}
@@ -393,13 +399,13 @@ void		handle_light(t_env *obj, t_color *color)
 
 void		check_norm(t_env *obj)
 {
-	if (vect_dot(&obj->norm, &obj->ray.dir) > 0.0f)
+	if (vect_dot(&obj->draw_data.norm, &obj->draw_data.ray.dir) > 0.0f)
 	{
-		obj->norm = vect_scale(-1.0f, &obj->norm);
-		obj->flip = 1;
+		obj->draw_data.norm = vect_scale(-1.0f, &obj->draw_data.norm);
+		obj->draw_data.flip = 1;
 	}
 	else
-		obj->flip = 0;
+		obj->draw_data.flip = 0;
 }
 
 int			hit_obj(t_env *obj, t_color *color, double t)
@@ -409,57 +415,57 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 
 	// Need to add a camera position and translation
 	// Need to thin out repeated code and make another function
-	scaled = vect_scale(t, &obj->ray.dir);
-	obj->ray.start = vect_add(&obj->ray.start, &scaled);
-	if (obj->cur_sphere != -1)
+	scaled = vect_scale(t, &obj->draw_data.ray.dir);
+	obj->draw_data.ray.start = vect_add(&obj->draw_data.ray.start, &scaled);
+	if (obj->draw_data.cur_objs.cur_sphere != -1)
 	{
-		obj->cur_mat = obj->materials[obj->spheres[obj->cur_sphere].mat];
-		obj->norm = vect_sub(&obj->ray.start, &obj->spheres[obj->cur_sphere].pos);
+		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.spheres[obj->draw_data.cur_objs.cur_sphere].mat];
+		obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &obj->scene.objs.spheres[obj->draw_data.cur_objs.cur_sphere].pos);
 		check_norm(obj);
-		if (!vect_norm(&obj->norm))
+		if (!vect_norm(&obj->draw_data.norm))
 			return (0);
 	}
-	else if (obj->cur_cylinder != -1)
+	else if (obj->draw_data.cur_objs.cur_cylinder != -1)
 	{
 		t_vector	projection;
 
-		obj->cur_mat = obj->materials[obj->cylinders[obj->cur_cylinder].mat];
-		obj->norm = vect_sub(&obj->ray.start, &obj->cylinders[obj->cur_cylinder].pos);
-		projection = vect_scale(vect_dot(&obj->norm, &obj->cylinders[obj->cur_cylinder].rot), &obj->cylinders[obj->cur_cylinder].rot);
-		obj->norm = vect_sub(&obj->norm, &projection);
+		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].mat];
+		obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].pos);
+		projection = vect_scale(vect_dot(&obj->draw_data.norm, &obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].rot), &obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].rot);
+		obj->draw_data.norm = vect_sub(&obj->draw_data.norm, &projection);
 		check_norm(obj);
-		if (!vect_norm(&obj->norm))
+		if (!vect_norm(&obj->draw_data.norm))
 			return (0);
 	}
-	else if (obj->cur_cone != -1)
+	else if (obj->draw_data.cur_objs.cur_cone != -1)
 	{
 		t_vector		projection1;
 
-		obj->cur_mat = obj->materials[obj->cones[obj->cur_cone].mat];
-		obj->norm = vect_sub(&obj->ray.start, &obj->cones[obj->cur_cone].pos);
-		projection1 = vect_scale(vect_dot(&obj->norm, &obj->cones[obj->cur_cone].rot), &obj->cones[obj->cur_cone].rot);
-		obj->norm = vect_sub(&obj->norm, &projection1);
+		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].mat];
+		obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].pos);
+		projection1 = vect_scale(vect_dot(&obj->draw_data.norm, &obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].rot), &obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].rot);
+		obj->draw_data.norm = vect_sub(&obj->draw_data.norm, &projection1);
 		check_norm(obj);
-		if (!vect_norm(&obj->norm))
+		if (!vect_norm(&obj->draw_data.norm))
 			return (0);
 	}
-	else if (obj->cur_plane != -1)
+	else if (obj->draw_data.cur_objs.cur_plane != -1)
 	{
-		obj->cur_mat = obj->materials[obj->planes[obj->cur_plane].mat];
-		obj->norm = obj->planes[obj->cur_plane].rot;
-		if (vect_dot(&obj->ray.dir, &obj->planes[obj->cur_plane].rot) > 0.0f)
+		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.planes[obj->draw_data.cur_objs.cur_plane].mat];
+		obj->draw_data.norm = obj->scene.objs.planes[obj->draw_data.cur_objs.cur_plane].rot;
+		if (vect_dot(&obj->draw_data.ray.dir, &obj->scene.objs.planes[obj->draw_data.cur_objs.cur_plane].rot) > 0.0f)
 		{
-			obj->norm = vect_scale(-1.0f, &obj->norm);
-			obj->flip = 1;
+			obj->draw_data.norm = vect_scale(-1.0f, &obj->draw_data.norm);
+			obj->draw_data.flip = 1;
 		}
-		if (!vect_norm(&obj->norm))
+		if (!vect_norm(&obj->draw_data.norm))
 			return (0);
 	}
 	else
 	{
 		/* No hit - add background */
 		t_color test = col_create(0, 0, 0);
-		test = col_mul_coef(&test, obj->coef);
+		test = col_mul_coef(&test, obj->draw_data.coef);
 		*color = col_add(color, &test);
 		return (0);
 	}
@@ -473,59 +479,59 @@ void		ray_tracing(t_env *obj, t_color *color)
 	double			t;
 
 	level = 0;
-	while ((obj->coef > 0.0f) && (level < RAY_DEPTH))
+	while ((obj->draw_data.coef > 0.0f) && (level < RAY_DEPTH))
 	{
 		t = 20000.0f;
-		obj->cur_sphere = -1;
-		obj->cur_cylinder = -1;
-		obj->cur_cone = -1;
-		obj->cur_plane = -1;
-		obj->flip = 0;
+		obj->draw_data.cur_objs.cur_sphere = -1;
+		obj->draw_data.cur_objs.cur_cylinder = -1;
+		obj->draw_data.cur_objs.cur_cone = -1;
+		obj->draw_data.cur_objs.cur_plane = -1;
+		obj->draw_data.flip = 0;
 
 		i = 0;
 		// Search for ray intersection with obj in env
-		while (i < obj->sc)
+		while (i < obj->scene.obj_count.sc)
 		{
-			if (ray_intersect_sphere(&obj->ray, &obj->spheres[i], &t))
-				obj->cur_sphere = i;
+			if (ray_intersect_sphere(&obj->draw_data.ray, &obj->scene.objs.spheres[i], &t))
+				obj->draw_data.cur_objs.cur_sphere = i;
 			i++;
 		}
 		i = 0;
-		while (i < obj->cyc)
+		while (i < obj->scene.obj_count.cyc)
 		{
-			if (ray_intersect_cylinder(&obj->ray, &obj->cylinders[i], &t, obj->flip))
+			if (ray_intersect_cylinder(&obj->draw_data.ray, &obj->scene.objs.cylinders[i], &t, obj->draw_data.flip))
 			{
-				obj->cur_sphere = -1;
-				obj->cur_cylinder = i;
+				obj->draw_data.cur_objs.cur_sphere = -1;
+				obj->draw_data.cur_objs.cur_cylinder = i;
 			}
 			i++;
 		}
 		i = 0;
-		while (i < obj->cnc)
+		while (i < obj->scene.obj_count.cnc)
 		{
-			if (ray_intersect_cone(&obj->ray, &obj->cones[i], &t, obj->flip))
+			if (ray_intersect_cone(&obj->draw_data.ray, &obj->scene.objs.cones[i], &t, obj->draw_data.flip))
 			{
-				obj->cur_sphere = -1;
-				obj->cur_cylinder = -1;
-				obj->cur_cone = i;
+				obj->draw_data.cur_objs.cur_sphere = -1;
+				obj->draw_data.cur_objs.cur_cylinder = -1;
+				obj->draw_data.cur_objs.cur_cone = i;
 			}
 			i++;
 		}
 		i = 0;
-		while (i < obj->pc)
+		while (i < obj->scene.obj_count.pc)
 		{
-			if (ray_intersect_plane(&obj->ray, &obj->planes[i], &t))
+			if (ray_intersect_plane(&obj->draw_data.ray, &obj->scene.objs.planes[i], &t))
 			{
-				obj->cur_sphere = -1;
-				obj->cur_cylinder = -1;
-				obj->cur_cone = -1;
-				obj->cur_plane = i;
+				obj->draw_data.cur_objs.cur_sphere = -1;
+				obj->draw_data.cur_objs.cur_cylinder = -1;
+				obj->draw_data.cur_objs.cur_cone = -1;
+				obj->draw_data.cur_objs.cur_plane = i;
 			}
 			i++;
 		}
 		if (!hit_obj(obj, color, t))
 			break;
-		if (!obj->flip)
+		if (!obj->draw_data.flip)
 		{
 			handle_light(obj, color);
 			apply_reflection(obj);
@@ -546,13 +552,13 @@ void		trace_each_pixel(t_env *obj)
 		x = 0;
 		while (x < W_WIDTH)
 		{
-			obj->coef = 1.0;
+			obj->draw_data.coef = 1.0;
 			color = col_create(0, 0, 0);
 			tmp = vect_create(x, y, -1000.0f);
-			obj->ray.start = obj->scene.cam_pos;
-			vec_mult_mat(&tmp, obj->scene.g_mat, &tmp1);
-			obj->ray.dir = vect_sub(&tmp1, &obj->ray.start);
-			vect_norm(&obj->ray.dir);
+			obj->draw_data.ray.start = obj->scene.cam_pos;
+			vec_mult_mat(&tmp, obj->draw_data.g_mat, &tmp1);
+			obj->draw_data.ray.dir = vect_sub(&tmp1, &obj->draw_data.ray.start);
+			vect_norm(&obj->draw_data.ray.dir);
 			ray_tracing(obj, &color);
 			correct_gamma(&color);
 			pixel_to_img(&obj->mlx, x, y, color);
@@ -580,43 +586,43 @@ void		setup_struct(t_env *obj)
 	obj->scene.cam_rot = vect_create(0, -150, 0);
 	obj->scene.cam_rot = vect_scale(M_PI / 180, &obj->scene.cam_rot);
 
-	mat_identity(obj->scene.g_mat);
-	mat_rotate(obj->scene.g_mat, obj->scene.cam_rot.x, obj->scene.cam_rot.y, obj->scene.cam_rot.z);
-	mat_translate(obj->scene.g_mat, obj->scene.cam_pos.x, obj->scene.cam_pos.y, obj->scene.cam_pos.z);
+	mat_identity(obj->draw_data.g_mat);
+	mat_rotate(obj->draw_data.g_mat, obj->scene.cam_rot.x, obj->scene.cam_rot.y, obj->scene.cam_rot.z);
+	mat_translate(obj->draw_data.g_mat, obj->scene.cam_pos.x, obj->scene.cam_pos.y, obj->scene.cam_pos.z);
 
-	obj->mc = 4;
-	obj->materials = (t_mat*)malloc(sizeof(t_mat) * obj->mc);
+	obj->scene.obj_count.mc = 4;
+	obj->scene.objs.materials = (t_mat*)malloc(sizeof(t_mat) * obj->scene.obj_count.mc);
 
-	obj->materials[0].diffuse = col_create(1, 0, 0);
-	obj->materials[0].specular = col_create(1, 1, 1);
-	obj->materials[0].reflection = 0.2;
-	obj->materials[0].power = 60;
+	obj->scene.objs.materials[0].diffuse = col_create(1, 0, 0);
+	obj->scene.objs.materials[0].specular = col_create(1, 1, 1);
+	obj->scene.objs.materials[0].reflection = 0.2;
+	obj->scene.objs.materials[0].power = 60;
 
-	obj->materials[1].diffuse = col_create(0, 1, 0);
-	obj->materials[1].specular = col_create(1, 1, 1);
-	obj->materials[1].reflection = 0.5;
-	obj->materials[1].power = 60;
+	obj->scene.objs.materials[1].diffuse = col_create(0, 1, 0);
+	obj->scene.objs.materials[1].specular = col_create(1, 1, 1);
+	obj->scene.objs.materials[1].reflection = 0.5;
+	obj->scene.objs.materials[1].power = 60;
 
-	obj->materials[2].diffuse = col_create(0, 0, 1);
-	obj->materials[2].specular = col_create(0.1, 0.1, 0.1);
-	obj->materials[2].reflection = 0.9;
-	obj->materials[2].power = 60;
+	obj->scene.objs.materials[2].diffuse = col_create(0, 0, 1);
+	obj->scene.objs.materials[2].specular = col_create(0.1, 0.1, 0.1);
+	obj->scene.objs.materials[2].reflection = 0.9;
+	obj->scene.objs.materials[2].power = 60;
 
-	obj->materials[3].diffuse = col_create(0.5, 0.5, 0.5);
-	obj->materials[3].specular = col_create(0.5, 0.5, 0.5);
-	obj->materials[3].reflection = 0;
-	obj->materials[3].power = 60;
+	obj->scene.objs.materials[3].diffuse = col_create(0.5, 0.5, 0.5);
+	obj->scene.objs.materials[3].specular = col_create(0.5, 0.5, 0.5);
+	obj->scene.objs.materials[3].reflection = 0;
+	obj->scene.objs.materials[3].power = 60;
 
-	obj->sc = 2;
-	obj->spheres = (t_sphere*)malloc(sizeof(t_sphere) * obj->sc);
+	obj->scene.obj_count.sc = 2;
+	obj->scene.objs.spheres = (t_sphere*)malloc(sizeof(t_sphere) * obj->scene.obj_count.sc);
 
-	obj->spheres[0].pos = vect_create(200, 400, 10);
-	obj->spheres[0].radius = 100;
-	obj->spheres[0].mat = 0;
+	obj->scene.objs.spheres[0].pos = vect_create(200, 400, 10);
+	obj->scene.objs.spheres[0].radius = 100;
+	obj->scene.objs.spheres[0].mat = 0;
 
-	obj->spheres[1].pos = vect_create(600, 245, 120);
-	obj->spheres[1].radius = 100;
-	obj->spheres[1].mat = 2;
+	obj->scene.objs.spheres[1].pos = vect_create(600, 245, 120);
+	obj->scene.objs.spheres[1].radius = 100;
+	obj->scene.objs.spheres[1].mat = 2;
 
 	t_vector	tmp;
 	float		mat[4][4];
@@ -625,26 +631,26 @@ void		setup_struct(t_env *obj)
 	mat_identity(mat);
 	mat_rotate(mat, 0, 0, -(45 * M_PI / 180));
 
-	obj->cyc = 1;
-	obj->cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->cyc);
+	obj->scene.obj_count.cyc = 1;
+	obj->scene.objs.cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->scene.obj_count.cyc);
 
-	obj->cylinders[0].pos = vect_create(200, 600, 500);
-	vec_mult_mat(&tmp, mat, &obj->cylinders[0].rot);
-	obj->cylinders[0].radius = 100;
-	obj->cylinders[0].mat = 1;
+	obj->scene.objs.cylinders[0].pos = vect_create(200, 600, 500);
+	vec_mult_mat(&tmp, mat, &obj->scene.objs.cylinders[0].rot);
+	obj->scene.objs.cylinders[0].radius = 100;
+	obj->scene.objs.cylinders[0].mat = 1;
 
 	float		mat2[4][4];
 
 	mat_identity(mat2);
 	mat_rotate(mat2, 0, 0, (45 * M_PI / 180));
 
-	obj->cnc = 1;
-	obj->cones = (t_cone*)malloc(sizeof(t_cone) * obj->cnc);
+	obj->scene.obj_count.cnc = 1;
+	obj->scene.objs.cones = (t_cone*)malloc(sizeof(t_cone) * obj->scene.obj_count.cnc);
 
-	obj->cones[0].pos = vect_create(650, 300, 400);
-	vec_mult_mat(&tmp, mat2, &obj->cones[0].rot);
-	obj->cones[0].radius = 0.5;
-	obj->cones[0].mat = 2;
+	obj->scene.objs.cones[0].pos = vect_create(650, 300, 400);
+	vec_mult_mat(&tmp, mat2, &obj->scene.objs.cones[0].rot);
+	obj->scene.objs.cones[0].radius = 0.5;
+	obj->scene.objs.cones[0].mat = 2;
 
 	t_vector	tmp1;
 	float		mat1[4][4];
@@ -653,21 +659,21 @@ void		setup_struct(t_env *obj)
 	mat_identity(mat1);
 	mat_rotate(mat1, -(90 * M_PI / 180), 0, 0);
 
-	obj->pc = 1;
-	obj->planes = (t_plane*)malloc(sizeof(t_plane) * obj->pc);
+	obj->scene.obj_count.pc = 1;
+	obj->scene.objs.planes = (t_plane*)malloc(sizeof(t_plane) * obj->scene.obj_count.pc);
 
-	obj->planes[0].pos = vect_create(0, 550, 0);
-	vec_mult_mat(&tmp1, mat1, &obj->planes[0].rot);
-	obj->planes[0].mat = 3;
+	obj->scene.objs.planes[0].pos = vect_create(0, 550, 0);
+	vec_mult_mat(&tmp1, mat1, &obj->scene.objs.planes[0].rot);
+	obj->scene.objs.planes[0].mat = 3;
 
-	obj->lc = 2;
-	obj->lights = (t_light*)malloc(sizeof(t_light) * obj->lc);
+	obj->scene.obj_count.lc = 2;
+	obj->scene.objs.lights = (t_light*)malloc(sizeof(t_light) * obj->scene.obj_count.lc);
 
-	obj->lights[0].pos = vect_create(300, 300, -600);
-	obj->lights[0].intensity = col_create(1, 1, 1);
+	obj->scene.objs.lights[0].pos = vect_create(300, 300, -600);
+	obj->scene.objs.lights[0].intensity = col_create(1, 1, 1);
 
-	obj->lights[1].pos = vect_create(500, 100, -200);
-	obj->lights[1].intensity = col_create(0.3, 0.5, 1);
+	obj->scene.objs.lights[1].pos = vect_create(500, 100, -200);
+	obj->scene.objs.lights[1].intensity = col_create(0.3, 0.5, 1);
 }
 
 void		create_win(t_env *obj)
@@ -682,6 +688,44 @@ void		create_win(t_env *obj)
 	// mlx_hook(obj->mlx.win, 3, 0, my_key_release, obj);
 	mlx_loop_hook(obj->mlx.mlx, run_img, obj);
 	mlx_loop(obj->mlx.mlx);
+}
+
+unsigned int	count_ord(char *av)
+{
+	int				fd;
+	char			*tmp;
+	unsigned int	count;
+
+	count = 0;
+	fd = open(av, O_RDONLY);
+	if (fd < 0)
+		return ((int)error("failed to open file"));
+	while (get_next_line(fd, &tmp))
+		count++;
+	close(fd);
+	return (count);
+}
+
+int				read_file(char *av, t_scene *scene)
+{
+	int				fd;
+	int				ret;
+	unsigned int	i;
+	char			*tmp;
+
+	i = 0;
+	fd = open(av, O_RDONLY);
+	while ((ret = get_next_line(fd, &tmp)))
+	{
+
+		if ( == NULL)
+			return ((int)error("wronge file format"));
+		i++;
+	}
+	if (i == 0)
+		return ((int)error("empty file"));
+	close(fd);
+	return (1);
 }
 
 int			main(int argc, char **argv)

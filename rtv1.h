@@ -40,11 +40,11 @@ enum			e_obj
 
 typedef struct	s_pressed
 {
-	int			shift;
-	int			a;
-	int			d;
-	int			w;
-	int			s;
+	int			shift:1;
+	int			a:1;
+	int			d:1;
+	int			w:1;
+	int			s:1;
 }				t_pressed;
 
 typedef struct	s_vector
@@ -123,41 +123,61 @@ typedef struct	s_mlx
 	int			endian;
 }				t_mlx;
 
-// Need to add a camera input system using Matrix multiplication
-typedef struct	s_scene
+typedef struct	s_cur
 {
-	t_vector	cam_pos;
-	t_vector	cam_rot;
-	float		g_mat[4][4];
-}				t_scene;
-
-// Need to reorganize my structures delete whats not neccissary such as the ray and coef and norm
-typedef struct	s_env
-{
-	t_mlx		mlx;
-	t_scene		scene;
-	t_ray		ray;
-	t_mat		*materials;
 	t_mat		cur_mat;
-	t_light		*lights;
 	t_light		cur_light;
-	t_sphere	*spheres;
 	int			cur_sphere;
-	t_cylinder	*cylinders;
 	int			cur_cylinder;
-	t_cone		*cones;
 	int			cur_cone;
-	t_plane		*planes;
 	int			cur_plane;
-	t_vector	norm;
-	double		coef;
+}				t_cur;
+
+typedef struct	s_objc
+{
 	unsigned	mc;
 	unsigned	lc;
 	unsigned	sc;
 	unsigned	cyc;
 	unsigned	cnc;
 	unsigned	pc;
+}				t_objc;
+
+typedef struct	s_objs
+{
+	t_mat		*materials;
+	t_light		*lights;
+	t_sphere	*spheres;
+	t_cylinder	*cylinders;
+	t_cone		*cones;
+	t_plane		*planes;
+}				t_objs;
+
+// Need to add a camera input system using Matrix multiplication
+typedef struct	s_scene
+{
+	t_vector	cam_pos;
+	t_vector	cam_rot;
+	t_objs		objs;
+	t_objc		obj_count;
+}				t_scene;
+
+typedef struct	s_draw
+{
+	t_ray		ray;
+	t_cur		cur_objs;
+	t_vector	norm;
+	float		g_mat[4][4];
+	double		coef;
 	int			flip:1;
+}				t_draw;
+
+// Need to reorganize my structures delete whats not neccissary such as the ray and coef and norm
+typedef struct	s_env
+{
+	t_mlx		mlx;
+	t_scene		scene;
+	t_draw		draw_data;
 }				t_env;
 
 void	mat_identity(float mat[4][4]);
