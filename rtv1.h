@@ -32,11 +32,22 @@
 enum			e_obj
 {
 				NONE,
-				SPHERE,
-				CYLINDER,
-				PLANE,
-				LIGHT
+				SETTINGS,
+				MATERIALS,
+				LIGHTS,
+				SPHERES,
+				CYLINDERS,
+				CONES,
+				PLANES
 };
+
+typedef struct	s_read
+{
+	char			*av;
+	char			*tmp;
+	int				fd;
+	int				ret;
+}				t_read;
 
 typedef struct	s_pressed
 {
@@ -160,6 +171,9 @@ typedef struct	s_scene
 	t_vector	cam_rot;
 	t_objs		objs;
 	t_objc		obj_count;
+	unsigned	w_width;
+	unsigned	w_height;
+	unsigned	ray_depth;
 }				t_scene;
 
 typedef struct	s_draw

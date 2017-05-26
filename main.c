@@ -559,6 +559,8 @@ void		trace_each_pixel(t_env *obj)
 			vec_mult_mat(&tmp, obj->draw_data.g_mat, &tmp1);
 			obj->draw_data.ray.dir = vect_sub(&tmp1, &obj->draw_data.ray.start);
 			vect_norm(&obj->draw_data.ray.dir);
+			// if (!vect_norm(&obj->draw_data.ray.dir))
+			// 	return (0);
 			ray_tracing(obj, &color);
 			correct_gamma(&color);
 			pixel_to_img(&obj->mlx, x, y, color);
@@ -679,7 +681,7 @@ void		setup_struct(t_env *obj)
 void		create_win(t_env *obj)
 {
 	setup_struct(obj);
-	obj->mlx.mlx = mlx_init();
+	obj->mlx.mlx = mlx_init(); // Same mlx different windows for multiple windows
 	obj->mlx.win = mlx_new_window(obj->mlx.mlx, W_WIDTH, W_HEIGHT, "RTv1");
 	obj->mlx.img = mlx_new_image(obj->mlx.mlx, W_WIDTH, W_HEIGHT);
 	// run_img(obj);
@@ -690,7 +692,7 @@ void		create_win(t_env *obj)
 	mlx_loop(obj->mlx.mlx);
 }
 
-unsigned int	count_ord(char *av)
+unsigned int	check_fd(char *av)
 {
 	int				fd;
 	char			*tmp;
@@ -699,31 +701,113 @@ unsigned int	count_ord(char *av)
 	count = 0;
 	fd = open(av, O_RDONLY);
 	if (fd < 0)
-		return ((int)error("failed to open file"));
+		return ((int)error(ft_strjoin(av, ": failed to open")));
 	while (get_next_line(fd, &tmp))
 		count++;
 	close(fd);
-	return (count);
+	return (count == 0 ? (int)error(ft_strjoin(av, ": is empty")) : count);
 }
+
+unsigned		check_enum(t_scene *s, char *str, unsigned *size)
+{
+	char	**tmp;
+
+	*size = 0;
+	tmp = ft_strsplit(str, ' ');
+	if (ft_strequ("settings:", str_low(str)))
+	{
+		*size = 1;
+		return (SETTINGS);
+	}
+	else if (ft_strequ("materials:", str_low(tmp[0])))
+	{
+		*size = ft_atoi(tmp[1]);
+		s->obj_count.mc = *size;
+		s->objs.materials = (t_mat*)malloc(sizeof(t_mat) * s->obj_count.mc);
+		if (!s->objs.materials)
+			return ((int)error("failed to malloc"));
+		return (MATERIALS);
+	}
+	else if (ft_strequ("lights:", str_low(tmp[0])))
+	{
+		*size = ft_atoi(tmp[1]);
+		s->obj_count.lc = *size;
+		s->objs.lights = (t_light*)malloc(sizeof(t_light) * s->obj_count.lc);
+		if (!s->objs.lights)
+			return ((int)error("failed to malloc"));
+		return (LIGHTS);
+	}
+	else if (ft_strequ("spheres:", str_low(tmp[0])))
+	{
+		*size = ft_atoi(tmp[1]);
+		s->obj_count.sc = *size;
+		s->objs.spheres = (t_sphere*)malloc(sizeof(t_sphere) * s->obj_count.sc);
+		if (!s->objs.spheres)
+			return ((int)error("failed to malloc"));
+		return (SPHERES);
+	}
+	else if (ft_strequ("cylinders:", str_low(tmp[0])))
+	{
+		*size = ft_atoi(tmp[1]);
+		s->obj_count.cyc = *size;
+		s->objs.cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * s->obj_count.cyc);
+		if (!s->objs.cylinders)
+			return ((int)error("failed to malloc"));
+		return (CYLINDERS);
+	}
+	else if (ft_strequ("cones:", str_low(tmp[0])))
+	{
+		*size = ft_atoi(tmp[1]);
+		s->obj_count.cnc = *size;
+		s->objs.cones = (t_cone*)malloc(sizeof(t_cone) * s->obj_count.cnc);
+		if (!s->objs.cones)
+			return ((int)error("failed to malloc"));
+		return (CONES);
+	}
+	else if (ft_strequ("planes:", str_low(tmp[0])))
+	{
+		*size = ft_atoi(tmp[1]);
+		s->obj_count.pc = *size;
+		s->objs.planes = (t_plane*)malloc(sizeof(t_plane) * s->obj_count.pc);
+		if (!s->objs.planes)
+			return ((int)error("failed to malloc"));
+		return (PLANES);
+	}
+	return (NONE);
+}
+
+// unsigned		store_props(t_scene *s, char *str, enum type)
+// {
+//
+// }
+//
+// unsigned		check_size(t_scene *s, unsigned type, unsigned *size)
+// {
+//
+// }
 
 int				read_file(char *av, t_scene *scene)
 {
-	int				fd;
-	int				ret;
-	unsigned int	i;
 	char			*tmp;
+	int				fd;
+	unsigned		cur;
+	unsigned		size;
 
-	i = 0;
+	size = 0;
+	if (!check_fd(av))
+		return (0);
 	fd = open(av, O_RDONLY);
-	while ((ret = get_next_line(fd, &tmp)))
+	while (get_next_line(fd, &tmp))
 	{
-
-		if ( == NULL)
-			return ((int)error("wronge file format"));
-		i++;
+		if (ft_isalpha(tmp[0]) && !(cur = check_enum(scene, tmp, &size)))
+			return ((int)error(ft_strjoin(av, ": wronge category name")));
+		// else if (tmp[0] == '\t' && store_props(scene, tmp, cur))
+		// 	return ((int)error(ft_strjoin(av, ": wronge property options")));
+		// else if (tmp[0] == '\n' && check_size(scene, cur, size))
+		// 	return ((int)error(ft_strjoin(av, ": wronge amount of objs")));
+		// else
+		// 	return ((int)error(ft_strjoin(av, ": wronge file format")));
 	}
-	if (i == 0)
-		return ((int)error("empty file"));
 	close(fd);
 	return (1);
 }
@@ -731,9 +815,12 @@ int				read_file(char *av, t_scene *scene)
 int			main(int argc, char **argv)
 {
 	t_env		*obj;
+	// void		*mlx;
+	t_scene		*s;
 
-	argc = 0;
-	argv = NULL;
+	s = malloc(sizeof(t_scene));
+	if (argc == 2)
+		read_file(argv[1], s);
 	obj = malloc(sizeof(t_env));
 	create_win(obj);
 	return (0);

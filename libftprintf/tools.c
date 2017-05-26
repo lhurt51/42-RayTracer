@@ -16,6 +16,7 @@ void	*error(char *msg)
 {
 	ft_putstr("Error: ");
 	ft_putendl(msg);
+	ft_strdel(&msg);
 	return (NULL);
 }
 
