@@ -31,6 +31,8 @@ int				exit_hook(t_env *obj)
 		mlx_destroy_window(obj->mlx.mlx, obj->mlx.win);
 	if (obj->mlx.img)
 		mlx_destroy_image(obj->mlx.mlx, obj->mlx.img);
+	if (obj->scene.name)
+		ft_strdel(&obj->scene.name);
 	if (obj->scene.obj_count.mc)
 		ft_memdel((void**)&obj->scene.objs.materials);
 	if (obj->scene.obj_count.lc)
@@ -710,9 +712,8 @@ unsigned int	check_fd(char *av)
 
 unsigned		check_enum(t_scene *s, char *str, unsigned *size)
 {
-	char	**tmp;
+	char	**tmp; // mem delete this
 
-	*size = 0;
 	tmp = ft_strsplit(str, ' ');
 	if (ft_strequ("settings:", str_low(str)))
 	{
@@ -773,18 +774,113 @@ unsigned		check_enum(t_scene *s, char *str, unsigned *size)
 			return ((int)error("failed to malloc"));
 		return (PLANES);
 	}
-	return (NONE);
+	return ((int)error(ft_strjoin(s->name, ": wrong category name")));
 }
 
-// unsigned		store_props(t_scene *s, char *str, enum type)
-// {
+t_vector		parse_tripple(char *str)
+{
+	char		**t_s; // mem delete this
+	t_vector	tmp;
+
+	// I have to handle doubles
+	t_s = ft_strsplit(ft_strtrim(ft_strtrim(str, '('), ')'), ',');
+	if (t_s[2] && !t_s[3])
+		tmp = vect_create(atoi(t_s[0]), atoi(t_s[1]), atoi(t_s[2]));
+	else
+		tmp = vect_create(0, 0, 0);
+	print_vector(tmp);
+	return (tmp);
+}
+
+t_color		parse_color(char *str)
+{
+	t_vector	tmp;
+	t_color		rtn;
+
+	tmp = parse_tripple(str);
+	rtn = col_create(tmp.x, tmp.y, tmp.z);
+	return (rtn);
+}
+
+t_vector		parse_rot(char *str)
+{
+	t_vector	tmp;
+
+	tmp = parse_tripple(str);
+	tmp = vect_scale(M_PI / 180, &tmp);
+	return (tmp);
+}
+
+unsigned		store_settings(t_scene *s, char **str)
+{
+	if (ft_strequ("width:", str[0]))
+		s->w_width = atoi(str[1]);
+	else if (ft_strequ("height:", str[0]))
+		s->w_height = atoi(str[1]);
+	else if (ft_strequ("ray_depth:", str[0]))
+		s->ray_depth = atoi(str[1]);
+	else if (ft_strequ("cam_pos:", str[0]))
+		s->cam_pos = parse_tripple(str[1]);
+	else if (ft_strequ("cam_rot:", str[0]))
+		s->cam_pos = parse_rot(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong settings options")));
+	return (1);
+}
+
+unsigned		store_materials(t_scene *s, char **str, unsigned i)
+{
+	ft_printf("1: %s, 2: %s, index: %u\n", str[0], str[1], i);
+	if (ft_strequ("", str[0]))
+		s->objs.materials[i].diffuse = parse_color(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong materials options")));
+	return (1);
+}
+
+unsigned		store_props(t_scene *s, char *str, unsigned type, unsigned i)
+{
+	char	**tmp; // mem delete this
+
+	ft_printf("str: %s\n" , str);
+	tmp = ft_strsplit(ft_strtrim(str, '\t'), ' ');
+	if (type == SETTINGS)
+		return (store_settings(s, tmp));
+	else if (type == MATERIALS)
+		return (store_materials(s, tmp, i));
+	else if (type == LIGHTS)
+		return (1);
+	else if (type == SPHERES)
+		return (1);
+	else if (type == CYLINDERS)
+		return (1);
+	else if (type == CONES)
+		return (1);
+	else if (type == PLANES)
+		return (1);
+	else
+		return (NONE);
+}
 //
-// }
-//
-// unsigned		check_size(t_scene *s, unsigned type, unsigned *size)
-// {
-//
-// }
+unsigned		check_size(t_scene *s, unsigned type, unsigned size)
+{
+	if (type == SETTINGS && size == 0)
+		return (1);
+	else if (type == MATERIALS && size < s->obj_count.mc)
+		return (1);
+	else if (type == LIGHTS && size < s->obj_count.lc)
+		return (1);
+	else if (type == SPHERES && size < s->obj_count.sc)
+		return (1);
+	else if (type == CYLINDERS && size < s->obj_count.cyc)
+		return (1);
+	else if (type == CONES && size < s->obj_count.cnc)
+		return (1);
+	else if (type == PLANES && size < s->obj_count.cnc)
+		return (1);
+	else
+		return (NONE);
+}
 
 int				read_file(char *av, t_scene *scene)
 {
@@ -797,16 +893,17 @@ int				read_file(char *av, t_scene *scene)
 	if (!check_fd(av))
 		return (0);
 	fd = open(av, O_RDONLY);
+	scene->name = ft_strdup(av);
 	while (get_next_line(fd, &tmp))
 	{
-		if (ft_isalpha(tmp[0]) && !(cur = check_enum(scene, tmp, &size)))
-			return ((int)error(ft_strjoin(av, ": wronge category name")));
-		// else if (tmp[0] == '\t' && store_props(scene, tmp, cur))
-		// 	return ((int)error(ft_strjoin(av, ": wronge property options")));
-		// else if (tmp[0] == '\n' && check_size(scene, cur, size))
-		// 	return ((int)error(ft_strjoin(av, ": wronge amount of objs")));
-		// else
-		// 	return ((int)error(ft_strjoin(av, ": wronge file format")));
+		if (ft_isalpha(tmp[0]) && size != 0)
+			return ((int)error(ft_strjoin(av, ": wrong catergory size")));
+		else if (ft_isalpha(tmp[0]) && !(cur = check_enum(scene, tmp, &size)))
+			return (0);
+		else if (tmp[0] == '\t' && !store_props(scene, tmp, cur, size - 1))
+			return (0);
+		else if (!tmp[0] && !check_size(scene, cur, (--size)))
+			return ((int)error(ft_strjoin(av, ": wrong amount of objs")));
 	}
 	close(fd);
 	return (1);
@@ -819,6 +916,8 @@ int			main(int argc, char **argv)
 	t_scene		*s;
 
 	s = malloc(sizeof(t_scene));
+	if (!s)
+		return (0);
 	if (argc == 2)
 		read_file(argv[1], s);
 	obj = malloc(sizeof(t_env));

@@ -167,6 +167,7 @@ typedef struct	s_objs
 // Need to add a camera input system using Matrix multiplication
 typedef struct	s_scene
 {
+	char*		name;
 	t_vector	cam_pos;
 	t_vector	cam_rot;
 	t_objs		objs;
