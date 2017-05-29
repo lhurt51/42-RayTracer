@@ -2,18 +2,14 @@ SETTINGS:
 	width: 800
 	height: 600
 	ray_depth: 15
+	fov: 100
 	cam_pos: (0,0,-1000)
-	cam_rot: (0,-150,0)
+	cam_rot: (0,0,0)
 
 MATERIALS: 4
-	diffuse: (1,0,0)
-	specular: (1,1,1)
-	reflection: 0.2
-	power: 60
-
-	diffuse: (0,1,0)
-	specular: (1,1,1)
-	reflection: 0.5
+	diffuse: (0.5,0.5,0.5)
+	specular: (0.5,0.5,0.5)
+	reflection: 0
 	power: 60
 
 	diffuse: (0,0,1)
@@ -21,9 +17,14 @@ MATERIALS: 4
 	reflection: 0.9
 	power: 60
 
-	diffuse: (0.5,0.5,0.5)
-	specular: (0.5,0.5,0.5)
-	reflection: 0
+	diffuse: (0,1,0)
+	specular: (1,1,1)
+	reflection: 0.5
+	power: 60
+
+	diffuse: (1,0,0)
+	specular: (1,1,1)
+	reflection: 0.2
 	power: 60
 
 LIGHTS: 2

@@ -175,6 +175,7 @@ typedef struct	s_scene
 	unsigned	w_width;
 	unsigned	w_height;
 	unsigned	ray_depth;
+	unsigned	fov;
 }				t_scene;
 
 typedef struct	s_draw
@@ -193,6 +194,7 @@ typedef struct	s_env
 	t_mlx		mlx;
 	t_scene		scene;
 	t_draw		draw_data;
+	unsigned	w_num;
 }				t_env;
 
 void	mat_identity(float mat[4][4]);

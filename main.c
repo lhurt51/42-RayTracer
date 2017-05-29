@@ -27,6 +27,8 @@ void	pixel_to_img(t_mlx *new, int x, int y, t_color color)
 
 int				exit_hook(t_env *obj)
 {
+	static unsigned i = 0;
+
 	if (obj->mlx.win)
 		mlx_destroy_window(obj->mlx.mlx, obj->mlx.win);
 	if (obj->mlx.img)
@@ -46,7 +48,10 @@ int				exit_hook(t_env *obj)
 	if (obj->scene.obj_count.pc)
 		ft_memdel((void**)&obj->scene.objs.planes);
 	free(obj);
-	exit(0);
+	if (++i == obj->w_num)
+		exit(0);
+	else
+		return (0);
 }
 
 # include <stdio.h>
@@ -333,7 +338,6 @@ void		apply_reflection(t_env *obj)
 
 	obj->draw_data.coef *= obj->draw_data.cur_objs.cur_mat.reflection;
 	reflect = 2.0f * vect_dot(&obj->draw_data.ray.dir, &obj->draw_data.norm);
-	// obj->draw_data.ray.start = new_start;
 	rtn = vect_scale(reflect, &obj->draw_data.norm);
 	obj->draw_data.ray.dir = vect_sub(&obj->draw_data.ray.dir, &rtn);
 }
@@ -413,9 +417,7 @@ void		check_norm(t_env *obj)
 int			hit_obj(t_env *obj, t_color *color, double t)
 {
 	t_vector	scaled;
-	// double		tmp;
 
-	// Need to add a camera position and translation
 	// Need to thin out repeated code and make another function
 	scaled = vect_scale(t, &obj->draw_data.ray.dir);
 	obj->draw_data.ray.start = vect_add(&obj->draw_data.ray.start, &scaled);
@@ -556,13 +558,12 @@ void		trace_each_pixel(t_env *obj)
 		{
 			obj->draw_data.coef = 1.0;
 			color = col_create(0, 0, 0);
-			tmp = vect_create(x, y, -1000.0f);
+			tmp = vect_create(x, y, obj->scene.fov * 10); // FOV == the z of this vect_create
 			obj->draw_data.ray.start = obj->scene.cam_pos;
 			vec_mult_mat(&tmp, obj->draw_data.g_mat, &tmp1);
 			obj->draw_data.ray.dir = vect_sub(&tmp1, &obj->draw_data.ray.start);
-			vect_norm(&obj->draw_data.ray.dir);
-			// if (!vect_norm(&obj->draw_data.ray.dir))
-			// 	return (0);
+			if (!vect_norm(&obj->draw_data.ray.dir))
+				return;
 			ray_tracing(obj, &color);
 			correct_gamma(&color);
 			pixel_to_img(&obj->mlx, x, y, color);
@@ -586,112 +587,20 @@ int			run_img(t_env *obj)
 
 void		setup_struct(t_env *obj)
 {
-	obj->scene.cam_pos = vect_create(0, 0, -1000);
-	obj->scene.cam_rot = vect_create(0, -150, 0);
-	obj->scene.cam_rot = vect_scale(M_PI / 180, &obj->scene.cam_rot);
-
 	mat_identity(obj->draw_data.g_mat);
 	mat_rotate(obj->draw_data.g_mat, obj->scene.cam_rot.x, obj->scene.cam_rot.y, obj->scene.cam_rot.z);
 	mat_translate(obj->draw_data.g_mat, obj->scene.cam_pos.x, obj->scene.cam_pos.y, obj->scene.cam_pos.z);
-
-	obj->scene.obj_count.mc = 4;
-	obj->scene.objs.materials = (t_mat*)malloc(sizeof(t_mat) * obj->scene.obj_count.mc);
-
-	obj->scene.objs.materials[0].diffuse = col_create(1, 0, 0);
-	obj->scene.objs.materials[0].specular = col_create(1, 1, 1);
-	obj->scene.objs.materials[0].reflection = 0.2;
-	obj->scene.objs.materials[0].power = 60;
-
-	obj->scene.objs.materials[1].diffuse = col_create(0, 1, 0);
-	obj->scene.objs.materials[1].specular = col_create(1, 1, 1);
-	obj->scene.objs.materials[1].reflection = 0.5;
-	obj->scene.objs.materials[1].power = 60;
-
-	obj->scene.objs.materials[2].diffuse = col_create(0, 0, 1);
-	obj->scene.objs.materials[2].specular = col_create(0.1, 0.1, 0.1);
-	obj->scene.objs.materials[2].reflection = 0.9;
-	obj->scene.objs.materials[2].power = 60;
-
-	obj->scene.objs.materials[3].diffuse = col_create(0.5, 0.5, 0.5);
-	obj->scene.objs.materials[3].specular = col_create(0.5, 0.5, 0.5);
-	obj->scene.objs.materials[3].reflection = 0;
-	obj->scene.objs.materials[3].power = 60;
-
-	obj->scene.obj_count.sc = 2;
-	obj->scene.objs.spheres = (t_sphere*)malloc(sizeof(t_sphere) * obj->scene.obj_count.sc);
-
-	obj->scene.objs.spheres[0].pos = vect_create(200, 400, 10);
-	obj->scene.objs.spheres[0].radius = 100;
-	obj->scene.objs.spheres[0].mat = 0;
-
-	obj->scene.objs.spheres[1].pos = vect_create(600, 245, 120);
-	obj->scene.objs.spheres[1].radius = 100;
-	obj->scene.objs.spheres[1].mat = 2;
-
-	t_vector	tmp;
-	float		mat[4][4];
-
-	tmp = vect_create(0, -1, 0);
-	mat_identity(mat);
-	mat_rotate(mat, 0, 0, -(45 * M_PI / 180));
-
-	obj->scene.obj_count.cyc = 1;
-	obj->scene.objs.cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * obj->scene.obj_count.cyc);
-
-	obj->scene.objs.cylinders[0].pos = vect_create(200, 600, 500);
-	vec_mult_mat(&tmp, mat, &obj->scene.objs.cylinders[0].rot);
-	obj->scene.objs.cylinders[0].radius = 100;
-	obj->scene.objs.cylinders[0].mat = 1;
-
-	float		mat2[4][4];
-
-	mat_identity(mat2);
-	mat_rotate(mat2, 0, 0, (45 * M_PI / 180));
-
-	obj->scene.obj_count.cnc = 1;
-	obj->scene.objs.cones = (t_cone*)malloc(sizeof(t_cone) * obj->scene.obj_count.cnc);
-
-	obj->scene.objs.cones[0].pos = vect_create(650, 300, 400);
-	vec_mult_mat(&tmp, mat2, &obj->scene.objs.cones[0].rot);
-	obj->scene.objs.cones[0].radius = 0.5;
-	obj->scene.objs.cones[0].mat = 2;
-
-	t_vector	tmp1;
-	float		mat1[4][4];
-
-	tmp1 = vect_create(0, 0, -1);
-	mat_identity(mat1);
-	mat_rotate(mat1, -(90 * M_PI / 180), 0, 0);
-
-	obj->scene.obj_count.pc = 1;
-	obj->scene.objs.planes = (t_plane*)malloc(sizeof(t_plane) * obj->scene.obj_count.pc);
-
-	obj->scene.objs.planes[0].pos = vect_create(0, 550, 0);
-	vec_mult_mat(&tmp1, mat1, &obj->scene.objs.planes[0].rot);
-	obj->scene.objs.planes[0].mat = 3;
-
-	obj->scene.obj_count.lc = 2;
-	obj->scene.objs.lights = (t_light*)malloc(sizeof(t_light) * obj->scene.obj_count.lc);
-
-	obj->scene.objs.lights[0].pos = vect_create(300, 300, -600);
-	obj->scene.objs.lights[0].intensity = col_create(1, 1, 1);
-
-	obj->scene.objs.lights[1].pos = vect_create(500, 100, -200);
-	obj->scene.objs.lights[1].intensity = col_create(0.3, 0.5, 1);
 }
 
 void		create_win(t_env *obj)
 {
 	setup_struct(obj);
-	obj->mlx.mlx = mlx_init(); // Same mlx different windows for multiple windows
-	obj->mlx.win = mlx_new_window(obj->mlx.mlx, W_WIDTH, W_HEIGHT, "RTv1");
+	obj->mlx.win = mlx_new_window(obj->mlx.mlx, W_WIDTH, W_HEIGHT, ft_strjoin("RTv1 - ", obj->scene.name));
 	obj->mlx.img = mlx_new_image(obj->mlx.mlx, W_WIDTH, W_HEIGHT);
-	// run_img(obj);
 	mlx_hook(obj->mlx.win, 17, 0, exit_hook, obj);
 	mlx_hook(obj->mlx.win, 2, 0, my_key_press, obj);
 	// mlx_hook(obj->mlx.win, 3, 0, my_key_release, obj);
-	mlx_loop_hook(obj->mlx.mlx, run_img, obj);
-	mlx_loop(obj->mlx.mlx);
+	mlx_expose_hook(obj->mlx.win, run_img, obj);
 }
 
 unsigned int	check_fd(char *av)
@@ -777,18 +686,51 @@ unsigned		check_enum(t_scene *s, char *str, unsigned *size)
 	return ((int)error(ft_strjoin(s->name, ": wrong category name")));
 }
 
+double			find_decimal(char *str)
+{
+	unsigned	power;
+	unsigned	pos;
+	double		ans;
+
+	pos = 1;
+	power = ft_strlen(str);
+	while (power-- > 0)
+		pos *= 10;
+	ans = (double)(atoi(str)) / pos;
+	return (ans);
+}
+
+double			parse_double(char *str)
+{
+	char	**tmp; // mem delete this
+	double	ans;
+
+	tmp = ft_strsplit(str, '.');
+	if (tmp[1] && !tmp[2])
+	{
+		ans = atoi(tmp[0]);
+		if (ans >= 0.0f)
+			ans += find_decimal(tmp[1]);
+		else
+			ans -= find_decimal(tmp[1]);
+	}
+	else if (tmp[0] && !tmp[1])
+		ans = atoi(tmp[0]);
+	else
+		ans = 0.0f;
+	return (ans);
+}
+
 t_vector		parse_tripple(char *str)
 {
 	char		**t_s; // mem delete this
 	t_vector	tmp;
 
-	// I have to handle doubles
 	t_s = ft_strsplit(ft_strtrim(ft_strtrim(str, '('), ')'), ',');
 	if (t_s[2] && !t_s[3])
-		tmp = vect_create(atoi(t_s[0]), atoi(t_s[1]), atoi(t_s[2]));
+		tmp = vect_create(parse_double(t_s[0]), parse_double(t_s[1]), parse_double(t_s[2]));
 	else
 		tmp = vect_create(0, 0, 0);
-	print_vector(tmp);
 	return (tmp);
 }
 
@@ -819,10 +761,12 @@ unsigned		store_settings(t_scene *s, char **str)
 		s->w_height = atoi(str[1]);
 	else if (ft_strequ("ray_depth:", str[0]))
 		s->ray_depth = atoi(str[1]);
+	else if (ft_strequ("fov:", str[0]))
+		s->fov = atoi(str[1]);
 	else if (ft_strequ("cam_pos:", str[0]))
 		s->cam_pos = parse_tripple(str[1]);
 	else if (ft_strequ("cam_rot:", str[0]))
-		s->cam_pos = parse_rot(str[1]);
+		s->cam_rot = parse_rot(str[1]);
 	else
 		return ((int)error(ft_strjoin(s->name, ": wrong settings options")));
 	return (1);
@@ -830,11 +774,111 @@ unsigned		store_settings(t_scene *s, char **str)
 
 unsigned		store_materials(t_scene *s, char **str, unsigned i)
 {
-	ft_printf("1: %s, 2: %s, index: %u\n", str[0], str[1], i);
-	if (ft_strequ("", str[0]))
+	if (ft_strequ("diffuse:", str[0]))
 		s->objs.materials[i].diffuse = parse_color(str[1]);
+	else if (ft_strequ("specular:", str[0]))
+		s->objs.materials[i].specular = parse_color(str[1]);
+	else if (ft_strequ("reflection:", str[0]))
+		s->objs.materials[i].reflection = parse_double(str[1]);
+	else if (ft_strequ("power:", str[0]))
+		s->objs.materials[i].power = parse_double(str[1]);
 	else
-		return ((int)error(ft_strjoin(s->name, ": wrong materials options")));
+		return ((int)error(ft_strjoin(s->name, ": wrong material properties")));
+	return (1);
+}
+
+unsigned		store_lights(t_scene *s, char **str, unsigned i)
+{
+	if (ft_strequ("pos:", str[0]))
+		s->objs.lights[i].pos = parse_tripple(str[1]);
+	else if (ft_strequ("intensity:", str[0]))
+		s->objs.lights[i].intensity = parse_color(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong light properties")));
+	return (1);
+}
+
+unsigned		store_spheres(t_scene *s, char **str, unsigned i)
+{
+	if (ft_strequ("pos:", str[0]))
+		s->objs.spheres[i].pos = parse_tripple(str[1]);
+	else if (ft_strequ("radius:", str[0]))
+		s->objs.spheres[i].radius = parse_double(str[1]);
+	else if (ft_strequ("mat:", str[0]))
+		s->objs.spheres[i].mat = atoi(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong sphere properties")));
+	return (1);
+}
+
+t_vector		rot_cy_cn(char *rot)
+{
+	t_vector	rtn;
+	t_vector	tmp;
+	float		mat[4][4];
+
+	tmp = vect_create(0, -1, 0);
+	rtn = parse_rot(rot);
+	mat_identity(mat);
+	mat_rotate(mat, rtn.x, rtn.y, rtn.z);
+	vec_mult_mat(&tmp, mat, &rtn);
+	return (rtn);
+}
+
+unsigned		store_cylinders(t_scene *s, char **str, unsigned i)
+{
+	if (ft_strequ("pos:", str[0]))
+		s->objs.cylinders[i].pos = parse_tripple(str[1]);
+	else if (ft_strequ("rot:", str[0]))
+		s->objs.cylinders[i].rot = rot_cy_cn(str[1]);
+	else if (ft_strequ("radius:", str[0]))
+		s->objs.cylinders[i].radius = parse_double(str[1]);
+	else if (ft_strequ("mat:", str[0]))
+		s->objs.cylinders[i].mat = atoi(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong cylinder properties")));
+	return (1);
+}
+
+unsigned		store_cones(t_scene *s, char **str, unsigned i)
+{
+	if (ft_strequ("pos:", str[0]))
+		s->objs.cones[i].pos = parse_tripple(str[1]);
+	else if (ft_strequ("rot:", str[0]))
+		s->objs.cones[i].rot = rot_cy_cn(str[1]);
+	else if (ft_strequ("radius:", str[0]))
+		s->objs.cones[i].radius = parse_double(str[1]);
+	else if (ft_strequ("mat:", str[0]))
+		s->objs.cones[i].mat = atoi(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong cone properties")));
+	return (1);
+}
+
+t_vector		rot_plane(char *rot)
+{
+	t_vector	rtn;
+	t_vector	tmp;
+	float		mat[4][4];
+
+	tmp = vect_create(0, 0, -1);
+	rtn = parse_rot(rot);
+	mat_identity(mat);
+	mat_rotate(mat, rtn.x, rtn.y, rtn.z);
+	vec_mult_mat(&tmp, mat, &rtn);
+	return (rtn);
+}
+
+unsigned		store_planes(t_scene *s, char **str, unsigned i)
+{
+	if (ft_strequ("pos:", str[0]))
+		s->objs.planes[i].pos = parse_tripple(str[1]);
+	else if (ft_strequ("rot:", str[0]))
+		s->objs.planes[i].rot = rot_plane(str[1]);
+	else if (ft_strequ("mat:", str[0]))
+		s->objs.planes[i].mat = atoi(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong plane properties")));
 	return (1);
 }
 
@@ -842,44 +886,43 @@ unsigned		store_props(t_scene *s, char *str, unsigned type, unsigned i)
 {
 	char	**tmp; // mem delete this
 
-	ft_printf("str: %s\n" , str);
 	tmp = ft_strsplit(ft_strtrim(str, '\t'), ' ');
 	if (type == SETTINGS)
 		return (store_settings(s, tmp));
 	else if (type == MATERIALS)
 		return (store_materials(s, tmp, i));
 	else if (type == LIGHTS)
-		return (1);
+		return (store_lights(s, tmp, i));
 	else if (type == SPHERES)
-		return (1);
+		return (store_spheres(s, tmp, i));
 	else if (type == CYLINDERS)
-		return (1);
+		return (store_cylinders(s, tmp, i));
 	else if (type == CONES)
-		return (1);
+		return (store_cones(s, tmp, i));
 	else if (type == PLANES)
-		return (1);
+		return (store_planes(s, tmp, i));
 	else
-		return (NONE);
+		return ((int)error(ft_strjoin(s->name, ": wrong type")));
 }
-//
+
 unsigned		check_size(t_scene *s, unsigned type, unsigned size)
 {
-	if (type == SETTINGS && size == 0)
-		return (1);
-	else if (type == MATERIALS && size < s->obj_count.mc)
-		return (1);
-	else if (type == LIGHTS && size < s->obj_count.lc)
-		return (1);
-	else if (type == SPHERES && size < s->obj_count.sc)
-		return (1);
-	else if (type == CYLINDERS && size < s->obj_count.cyc)
-		return (1);
-	else if (type == CONES && size < s->obj_count.cnc)
-		return (1);
-	else if (type == PLANES && size < s->obj_count.cnc)
-		return (1);
+	if (type == SETTINGS && size != 0)
+		return ((int)error(ft_strjoin(s->name, ": too many settings sections, only use 1 section")));
+	else if (type == MATERIALS && size >= s->obj_count.mc)
+		return ((int)error(ft_strjoin(s->name, ": too many materials")));
+	else if (type == LIGHTS && size >= s->obj_count.lc)
+		return ((int)error(ft_strjoin(s->name, ": too many lights")));
+	else if (type == SPHERES && size >= s->obj_count.sc)
+		return ((int)error(ft_strjoin(s->name, ": too many spheres")));
+	else if (type == CYLINDERS && size >= s->obj_count.cyc)
+		return ((int)error(ft_strjoin(s->name, ": too many cylinders")));
+	else if (type == CONES && size >= s->obj_count.cnc)
+		return ((int)error(ft_strjoin(s->name, ": too many cones")));
+	else if (type == PLANES && size >= s->obj_count.pc)
+		return ((int)error(ft_strjoin(s->name, ": too many planes")));
 	else
-		return (NONE);
+		return (1);
 }
 
 int				read_file(char *av, t_scene *scene)
@@ -903,7 +946,7 @@ int				read_file(char *av, t_scene *scene)
 		else if (tmp[0] == '\t' && !store_props(scene, tmp, cur, size - 1))
 			return (0);
 		else if (!tmp[0] && !check_size(scene, cur, (--size)))
-			return ((int)error(ft_strjoin(av, ": wrong amount of objs")));
+			return (0);
 	}
 	close(fd);
 	return (1);
@@ -912,15 +955,22 @@ int				read_file(char *av, t_scene *scene)
 int			main(int argc, char **argv)
 {
 	t_env		*obj;
-	// void		*mlx;
-	t_scene		*s;
+	void		*mlx;
+	int			i;
 
-	s = malloc(sizeof(t_scene));
-	if (!s)
-		return (0);
-	if (argc == 2)
-		read_file(argv[1], s);
-	obj = malloc(sizeof(t_env));
-	create_win(obj);
+	i = 0;
+	mlx = mlx_init();
+	while (i < argc - 1 && argc < 5)
+	{
+		obj = malloc(sizeof(t_env));
+		if (!obj)
+			return ((int)error("failed to malloc"));
+		obj->mlx.mlx = mlx;
+		obj->w_num = argc - 1;
+		if (read_file(argv[i + 1], &obj->scene))
+			create_win(obj);
+		i++;
+	}
+	mlx_loop(mlx);
 	return (0);
 }
