@@ -578,7 +578,7 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 			return (0);
 	}
 	else
-		set_background(obj, color);
+		return (set_background(obj, color));
 	return (1);
 }
 
