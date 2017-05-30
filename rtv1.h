@@ -138,10 +138,8 @@ typedef struct	s_cur
 {
 	t_mat		cur_mat;
 	t_light		cur_light;
-	int			cur_sphere;
-	int			cur_cylinder;
-	int			cur_cone;
-	int			cur_plane;
+	int			cur_obj;
+	int			cur_index;
 }				t_cur;
 
 typedef struct	s_objc
@@ -176,6 +174,7 @@ typedef struct	s_scene
 	unsigned	w_height;
 	unsigned	ray_depth;
 	unsigned	fov;
+	int			shadows:1;
 }				t_scene;
 
 typedef struct	s_draw

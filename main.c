@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   checks.c                                           :+:      :+:    :+:   */
+/*   main.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -50,8 +50,7 @@ int				exit_hook(t_env *obj)
 	free(obj);
 	if (++i == obj->w_num)
 		exit(0);
-	else
-		return (0);
+	return (0);
 }
 
 # include <stdio.h>
@@ -191,6 +190,15 @@ float		vect_dot(t_vector *v1, t_vector *v2)
 	return (v1->x * v2->x + v1->y * v2->y + v1->z * v2->z);
 }
 
+t_vector	vect_diff(t_vector *v1, t_vector *v2)
+{
+	t_vector	rtn;
+
+	rtn = vect_scale(vect_dot(v1, v2), v2);
+	rtn = vect_sub(v1, &rtn);
+	return (rtn);
+}
+
 double		vect_norm(t_vector *v)
 {
 	double		dist;
@@ -206,63 +214,44 @@ double		vect_norm(t_vector *v)
 int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, double *t)
 {
 	t_vector	dist;
-	int			rtn;
 	double		b;
 	double		discr;
-	double		t0;
-	double		t1;
+	double		ans;
 
-	rtn = 0;
 	dist = vect_sub(&sphere->pos, &ray->start);
 	b = vect_dot(&ray->dir, &dist);
-	discr = SQ(b) - vect_dot(&dist, &dist) + SQ(sphere->radius);
-	if (discr < 0.0f)
-		return (rtn);
-	t0 = (b - sqrtf(discr));
-	t1 = (b + sqrtf(discr));
-	if ((t0 > 0.1f) && (t0 < *t))
-	{
-		*t = t0;
-		rtn = 1;
-	}
-	if ((t1 > 0.1f) && (t1 < *t))
-	{
-		*t = t1;
-		rtn = 1;
-	}
-	return (rtn);
+	if ((discr = SQ(b) - vect_dot(&dist, &dist) + SQ(sphere->radius)) < 0.0f)
+		return (0);
+	ans = MIN((b - sqrtf(discr)), (b + sqrtf(discr)));
+	if ((ans > 0.1f) && (ans < *t))
+		*t = ans;
+	return (*t == ans);
 }
 
 int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t, int flip)
 {
 	t_vector	dist;
-	t_vector	tmp;
 	t_vector	cr;
 	double		b;
-	double		discr;
-	double		t0;
-	double		t1;
-	double		answ;
+	double		tmp[4];
 
-	// Need to use the rotation of the cylinder it is seg faulting right now
-	cr = vect_scale(vect_dot(&ray->dir, &c->rot), &c->rot);
-	cr = vect_sub(&ray->dir, &cr);
+	cr = vect_diff(&ray->dir, &c->rot);
 	dist = vect_sub(&ray->start, &c->pos);
-	tmp = vect_scale(vect_dot(&dist, &c->rot), &c->rot);
-	dist = vect_sub(&dist, &tmp);
+	dist = vect_diff(&dist, &c->rot);
 	b = 2 * vect_dot(&cr, &dist);
-	discr = SQ(b) - 4 * vect_dot(&cr, &cr)
+	tmp[0] = SQ(b) - 4 * vect_dot(&cr, &cr)
 		* (vect_dot(&dist, &dist) - SQ(c->radius));
-	answ = (-b + sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
-	if (discr > 0.0f)
+	tmp[3] = (-b + sqrtf(tmp[0])) / (2 * vect_dot(&cr, &cr));
+	if (tmp[0] > 0.0f)
 	{
-		t0 = (-b - sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
-		t1 = (-b + sqrtf(discr)) / (2 * vect_dot(&cr, &cr));
-		answ = ((MIN(t1, t0) < 0) ^ flip ? MAX(t1, t0) : MIN(t1, t0));
+		tmp[1] = (-b - sqrtf(tmp[0])) / (2 * vect_dot(&cr, &cr));
+		tmp[2] = (-b + sqrtf(tmp[0])) / (2 * vect_dot(&cr, &cr));
+		tmp[3] = ((MIN(tmp[2], tmp[1]) < 0) ^ flip ? MAX(tmp[2], tmp[1])
+			: MIN(tmp[2], tmp[1]));
 	}
-	if ((discr >= 0) && (answ > 0.1f) && (answ < *t))
-		*t = answ;
-	return (*t == answ);
+	if ((tmp[0] >= 0) && (tmp[3] > 0.1f) && (tmp[3] < *t))
+		*t = tmp[3];
+	return (*t == tmp[3]);
 }
 
 int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t, int flip)
@@ -270,21 +259,21 @@ int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t, int flip)
 	t_vector	dist;
 	double		a;
 	double		b;
-	double		c;
-	double		discr;
-	double		tmp[3];
+	double		tmp[4];
 
 	dist = vect_sub(&ray->start, &cn->pos);
-	a = vect_dot(&ray->dir, &ray->dir) - ((1 + SQ(cn->radius))) * vect_dot(&ray->dir, &cn->rot) * vect_dot(&ray->dir, &cn->rot);
-	b = 2 * (vect_dot(&ray->dir, &dist) - ((1 + SQ(cn->radius))) * vect_dot(&ray->dir, &cn->rot) * vect_dot(&dist, &cn->rot));
-	c = vect_dot(&dist, &dist) - ((1 + SQ(cn->radius))) * vect_dot(&dist, &cn->rot) * vect_dot(&dist, &cn->rot);
-	discr = SQ(b) - 4 * a * c;
-	if (discr == 0.0f)
-		tmp[2] = (-b + sqrtf(discr)) / (2 * a);
-	else if (discr > 0.0f)
+	a = vect_dot(&ray->dir,&ray->dir)-((1+SQ(cn->radius)))
+		*vect_dot(&ray->dir,&cn->rot)*vect_dot(&ray->dir,&cn->rot);
+	b = 2*(vect_dot(&ray->dir,&dist)-((1+SQ(cn->radius)))
+		*vect_dot(&ray->dir,&cn->rot)*vect_dot(&dist,&cn->rot));
+	tmp[3] = SQ(b)-4*a*(vect_dot(&dist,&dist)-((1+SQ(cn->radius)))
+		*vect_dot(&dist,&cn->rot)*vect_dot(&dist,&cn->rot));
+	if (tmp[3] == 0.0f)
+		tmp[2] = (-b + sqrtf(tmp[3])) / (2 * a);
+	else if (tmp[3] > 0.0f)
 	{
-		tmp[0] = (-b + sqrtf(discr)) / (2 * a);
-		tmp[1] = (-b - sqrtf(discr)) / (2 * a);
+		tmp[0] = (-b + sqrtf(tmp[3])) / (2 * a);
+		tmp[1] = (-b - sqrtf(tmp[3])) / (2 * a);
 		tmp[2] = (tmp[0] < tmp[1]) ^ flip ? tmp[0] : tmp[1];
 		tmp[2] = (tmp[2] < 0.0f) ? tmp[1] : tmp[2];
 	}
@@ -303,28 +292,26 @@ int			ray_intersect_plane(t_ray *ray, t_plane *p, double *t)
 	dist = vect_sub(&p->pos, &ray->start);
 	norm = vect_dot(&p->rot, &dist);
 	discr = vect_dot(&p->rot, &ray->dir);
-	if ((answ = norm / discr) > 0.1 && (answ < *t))
+	if ((answ = norm / discr) > 0.1f && (answ < *t))
 		*t = answ;
 	return (*t == answ);
 }
 
-t_color		apply_specular(t_env *obj, t_ray light_ray, double light_proj)
+t_color		apply_specular(t_env *obj, t_ray light_ray, double light_proj,
+	double view_proj)
 {
 	t_vector blinn_dir;
 	t_color	rtn;
-	double view_proj;
 	double tmp;
 	double blinn;
 
-	/* Blinn-Phong's Specular Lighting */
 	rtn = col_create(0, 0, 0);
-	view_proj = vect_dot(&obj->draw_data.ray.dir, &obj->draw_data.norm);
 	blinn_dir = vect_sub(&light_ray.dir, &obj->draw_data.ray.dir);
-	tmp = vect_dot(&blinn_dir, &blinn_dir);
-	if (tmp != 0.0f)
+	if ((tmp = vect_dot(&blinn_dir, &blinn_dir)) != 0.0f)
 	{
 		blinn = INVSQRTF(tmp) * MAX(light_proj - view_proj, 0.0f);
-		blinn = obj->draw_data.coef * powf(blinn, obj->draw_data.cur_objs.cur_mat.power);
+		blinn = obj->draw_data.coef * powf(blinn,
+			obj->draw_data.cur_objs.cur_mat.power);
 		rtn = col_mul_coef(&obj->draw_data.cur_objs.cur_mat.specular, blinn);
 		rtn = col_mul(&rtn, &obj->draw_data.cur_objs.cur_light.intensity);
 	}
@@ -344,7 +331,6 @@ void		apply_reflection(t_env *obj)
 
 void		correct_gamma(t_color *color)
 {
-	//Fixed gamma value from sRGB standard
 	double invgamma;
 
 	invgamma = 0.45f;
@@ -353,53 +339,125 @@ void		correct_gamma(t_color *color)
 	color->green = powf(color->green, invgamma);
 }
 
+int			find_closest_sphere(t_env *obj, t_ray *ray, double *t)
+{
+	unsigned 	i;
+	int			rtn;
+
+	i = 0;
+	rtn = -1;
+	while (i < obj->scene.obj_count.sc)
+	{
+		if (ray_intersect_sphere(ray,
+			&obj->scene.objs.spheres[i], t))
+			rtn = i;
+		i++;
+	}
+	return (rtn);
+}
+
+int			find_closest_cylinder(t_env *obj, t_ray *ray, double *t)
+{
+	unsigned 	i;
+	int			rtn;
+
+	i = 0;
+	rtn = -1;
+	while (i < obj->scene.obj_count.cyc)
+	{
+		if (ray_intersect_cylinder(ray,
+			&obj->scene.objs.cylinders[i], t, obj->draw_data.flip))
+			rtn = i;
+		i++;
+	}
+	return (rtn);
+}
+
+int			find_closest_cone(t_env *obj, t_ray *ray, double *t)
+{
+	unsigned 	i;
+	int			rtn;
+
+	i = 0;
+	rtn = -1;
+	while (i < obj->scene.obj_count.cnc)
+	{
+		if (ray_intersect_cone(ray, &obj->scene.objs.cones[i],
+			t, obj->draw_data.flip))
+		 	rtn = i;
+		i++;
+	}
+	return (rtn);
+}
+
+int			find_closest_plane(t_env *obj, t_ray *ray, double *t)
+{
+	unsigned 	i;
+	int			rtn;
+
+	i = 0;
+	rtn = -1;
+	while (i < obj->scene.obj_count.pc)
+	{
+		if (ray_intersect_plane(ray,
+			&obj->scene.objs.planes[i], t))
+	 		rtn = i;
+		i++;
+	}
+	return (rtn);
+}
+
+int			check_shadows(t_env *obj, t_ray *ray, double *t)
+{
+	if (find_closest_sphere(obj, ray, t) != -1)
+		return (1);
+	else if (find_closest_cylinder(obj, ray, t) != -1)
+		return (1);
+	else if (find_closest_cone(obj, ray, t) != -1)
+		return (1);
+	else if (find_closest_plane(obj, ray, t) != -1)
+		return (1);
+	else
+		return (0);
+}
+
+void		apply_light(t_env *obj, t_ray *light_ray, t_color *color,
+	double light_proj)
+{
+	t_color		tmp_color;
+	double		lambert;
+
+	lambert = vect_dot(&light_ray->dir, &obj->draw_data.norm)
+		* obj->draw_data.coef;
+	color->red += lambert * obj->draw_data.cur_objs.cur_light.intensity.red
+		* obj->draw_data.cur_objs.cur_mat.diffuse.red;
+	color->green += lambert * obj->draw_data.cur_objs.cur_light.intensity.green
+		* obj->draw_data.cur_objs.cur_mat.diffuse.green;
+	color->blue += lambert * obj->draw_data.cur_objs.cur_light.intensity.blue
+		* obj->draw_data.cur_objs.cur_mat.diffuse.blue;
+	tmp_color = apply_specular(obj, *light_ray, light_proj,
+		vect_dot(&obj->draw_data.ray.dir, &obj->draw_data.norm));
+	*color = col_add(color, &tmp_color);
+}
+
 void		handle_light(t_env *obj, t_color *color)
 {
 	t_ray		light_ray;
-	t_color		tmp_color;
-	double		lambert, light_proj, t;
-	int			shadow;
-	unsigned	i, j;
+	double		light_proj;
+	double		t;
+	unsigned	i;
 
 	i = 0;
 	light_ray.start = obj->draw_data.ray.start;
 	while (i < obj->scene.obj_count.lc)
 	{
-		shadow = 0;
 		obj->draw_data.cur_objs.cur_light = obj->scene.objs.lights[i++];
-		light_ray.dir = vect_sub(&obj->draw_data.cur_objs.cur_light.pos, &obj->draw_data.ray.start);
-		if ((light_proj = vect_dot(&light_ray.dir, &obj->draw_data.norm)) > 0.0f)
-		{
+		light_ray.dir = vect_sub(&obj->draw_data.cur_objs.cur_light.pos,
+			&obj->draw_data.ray.start);
+		if ((light_proj = vect_dot(&light_ray.dir,&obj->draw_data.norm)) > 0.0f)
 			if ((t = vect_norm(&light_ray.dir)))
-			{
-				light_proj = INVSQRTF(t) * light_proj;
-				j = 0;
-				while (j < obj->scene.obj_count.sc && !shadow)
-					if ((shadow = ray_intersect_sphere(&light_ray, &obj->scene.objs.spheres[j++], &t)))
-						break;
-				j = 0;
-				while (j < obj->scene.obj_count.cyc && !shadow)
-					if ((shadow = ray_intersect_cylinder(&light_ray, &obj->scene.objs.cylinders[j++], &t, obj->draw_data.flip)))
-						break;
-				j = 0;
-				while (j < obj->scene.obj_count.cnc && !shadow)
-					if ((shadow = ray_intersect_cone(&light_ray, &obj->scene.objs.cones[j++], &t, obj->draw_data.flip)))
-						break;
-				j = 0;
-				while (j < obj->scene.obj_count.pc && !shadow)
-					if ((shadow = ray_intersect_plane(&light_ray, &obj->scene.objs.planes[j++], &t)))
-						break;
-				if (!shadow)
-				{
-					lambert = vect_dot(&light_ray.dir, &obj->draw_data.norm) * obj->draw_data.coef;
-					color->red += lambert * obj->draw_data.cur_objs.cur_light.intensity.red * obj->draw_data.cur_objs.cur_mat.diffuse.red;
-					color->green += lambert * obj->draw_data.cur_objs.cur_light.intensity.green * obj->draw_data.cur_objs.cur_mat.diffuse.green;
-					color->blue += lambert * obj->draw_data.cur_objs.cur_light.intensity.blue * obj->draw_data.cur_objs.cur_mat.diffuse.blue;
-					tmp_color = apply_specular(obj, light_ray, light_proj);
-					*color = col_add(color, &tmp_color);
-				}
-			}
-		}
+				if (!check_shadows(obj, &light_ray, &t) || !obj->scene.shadows)
+					apply_light(obj, &light_ray, color, INVSQRTF(t)*light_proj);
 	}
 }
 
@@ -414,125 +472,155 @@ void		check_norm(t_env *obj)
 		obj->draw_data.flip = 0;
 }
 
-int			hit_obj(t_env *obj, t_color *color, double t)
+int			set_cur_sphere(t_env *obj)
+{
+	t_sphere	cur;
+
+	cur = obj->scene.objs.spheres[obj->draw_data.cur_objs.cur_index];
+	obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[cur.mat];
+	obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &cur.pos);
+	check_norm(obj);
+	if (!vect_norm(&obj->draw_data.norm))
+		return (0);
+	return (1);
+}
+
+int			set_cur_cylinder(t_env *obj)
+{
+	t_cylinder	cur;
+	t_vector	projection;
+
+	cur = obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_index];
+	obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[cur.mat];
+	obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &cur.pos);
+	projection = vect_scale(vect_dot(&obj->draw_data.norm, &cur.rot), &cur.rot);
+	obj->draw_data.norm = vect_sub(&obj->draw_data.norm, &projection);
+	check_norm(obj);
+	if (!vect_norm(&obj->draw_data.norm))
+		return (0);
+	return (1);
+}
+
+int			set_cur_cone(t_env *obj)
+{
+	t_cone		cur;
+	t_vector	projection;
+
+	cur = obj->scene.objs.cones[obj->draw_data.cur_objs.cur_index];
+	obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[cur.mat];
+	obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &cur.pos);
+	projection = vect_scale(vect_dot(&obj->draw_data.norm, &cur.rot), &cur.rot);
+	obj->draw_data.norm = vect_sub(&obj->draw_data.norm, &projection);
+	check_norm(obj);
+	if (!vect_norm(&obj->draw_data.norm))
+		return (0);
+	return (1);
+}
+
+int			set_cur_plane(t_env *obj)
+{
+	t_plane		cur;
+
+	cur = obj->scene.objs.planes[obj->draw_data.cur_objs.cur_index];
+	obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[cur.mat];
+	obj->draw_data.norm = cur.rot;
+	if (vect_dot(&obj->draw_data.ray.dir, &cur.rot) > 0.0f)
+	{
+		obj->draw_data.norm = vect_scale(-1.0f, &obj->draw_data.norm);
+		obj->draw_data.flip = 1;
+	}
+	else
+		obj->draw_data.flip = 0;
+	if (!vect_norm(&obj->draw_data.norm))
+		return (0);
+	return (1);
+}
+
+int			set_background(t_env *obj, t_color *color)
+{
+	t_color		test;
+
+	test = col_create(0, 0, 0);
+	test = col_mul_coef(&test, obj->draw_data.coef);
+	*color = col_add(color, &test);
+	return (0);
+}
+
+void		set_ray_start(t_env *obj, double *t)
 {
 	t_vector	scaled;
 
-	// Need to thin out repeated code and make another function
-	scaled = vect_scale(t, &obj->draw_data.ray.dir);
+	scaled = vect_scale(*t, &obj->draw_data.ray.dir);
 	obj->draw_data.ray.start = vect_add(&obj->draw_data.ray.start, &scaled);
-	if (obj->draw_data.cur_objs.cur_sphere != -1)
-	{
-		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.spheres[obj->draw_data.cur_objs.cur_sphere].mat];
-		obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &obj->scene.objs.spheres[obj->draw_data.cur_objs.cur_sphere].pos);
-		check_norm(obj);
-		if (!vect_norm(&obj->draw_data.norm))
-			return (0);
-	}
-	else if (obj->draw_data.cur_objs.cur_cylinder != -1)
-	{
-		t_vector	projection;
+}
 
-		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].mat];
-		obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].pos);
-		projection = vect_scale(vect_dot(&obj->draw_data.norm, &obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].rot), &obj->scene.objs.cylinders[obj->draw_data.cur_objs.cur_cylinder].rot);
-		obj->draw_data.norm = vect_sub(&obj->draw_data.norm, &projection);
-		check_norm(obj);
-		if (!vect_norm(&obj->draw_data.norm))
+int			hit_obj(t_env *obj, t_color *color, double t)
+{
+	set_ray_start(obj, &t);
+	if (obj->draw_data.cur_objs.cur_obj == SPHERES)
+	{
+		if (!set_cur_sphere(obj))
 			return (0);
 	}
-	else if (obj->draw_data.cur_objs.cur_cone != -1)
+	else if (obj->draw_data.cur_objs.cur_obj == CYLINDERS)
 	{
-		t_vector		projection1;
-
-		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].mat];
-		obj->draw_data.norm = vect_sub(&obj->draw_data.ray.start, &obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].pos);
-		projection1 = vect_scale(vect_dot(&obj->draw_data.norm, &obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].rot), &obj->scene.objs.cones[obj->draw_data.cur_objs.cur_cone].rot);
-		obj->draw_data.norm = vect_sub(&obj->draw_data.norm, &projection1);
-		check_norm(obj);
-		if (!vect_norm(&obj->draw_data.norm))
+		if (!set_cur_cylinder(obj))
 			return (0);
 	}
-	else if (obj->draw_data.cur_objs.cur_plane != -1)
+	else if (obj->draw_data.cur_objs.cur_obj == CONES)
 	{
-		obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[obj->scene.objs.planes[obj->draw_data.cur_objs.cur_plane].mat];
-		obj->draw_data.norm = obj->scene.objs.planes[obj->draw_data.cur_objs.cur_plane].rot;
-		if (vect_dot(&obj->draw_data.ray.dir, &obj->scene.objs.planes[obj->draw_data.cur_objs.cur_plane].rot) > 0.0f)
-		{
-			obj->draw_data.norm = vect_scale(-1.0f, &obj->draw_data.norm);
-			obj->draw_data.flip = 1;
-		}
-		if (!vect_norm(&obj->draw_data.norm))
+		if (!set_cur_cone(obj))
+			return (0);
+	}
+	else if (obj->draw_data.cur_objs.cur_obj == PLANES)
+	{
+		if (!set_cur_plane(obj))
 			return (0);
 	}
 	else
-	{
-		/* No hit - add background */
-		t_color test = col_create(0, 0, 0);
-		test = col_mul_coef(&test, obj->draw_data.coef);
-		*color = col_add(color, &test);
-		return (0);
-	}
+		set_background(obj, color);
 	return (1);
+}
+
+void		find_closest_obj(t_env *obj, double *t)
+{
+	int 	i;
+
+	obj->draw_data.cur_objs.cur_index = -1;
+	obj->draw_data.cur_objs.cur_obj = NONE;
+	if ((i = find_closest_sphere(obj, &obj->draw_data.ray, t)) != -1)
+	{
+		obj->draw_data.cur_objs.cur_index = i;
+		obj->draw_data.cur_objs.cur_obj = SPHERES;
+	}
+	if ((i = find_closest_cylinder(obj, &obj->draw_data.ray, t)) != -1)
+	{
+		obj->draw_data.cur_objs.cur_index = i;
+		obj->draw_data.cur_objs.cur_obj = CYLINDERS;
+	}
+	if ((i = find_closest_cone(obj, &obj->draw_data.ray, t)) != -1)
+	{
+		obj->draw_data.cur_objs.cur_index = i;
+		obj->draw_data.cur_objs.cur_obj = CONES;
+	}
+	if ((i = find_closest_plane(obj, &obj->draw_data.ray, t)) != -1)
+	{
+		obj->draw_data.cur_objs.cur_index = i;
+		obj->draw_data.cur_objs.cur_obj = PLANES;
+	}
 }
 
 void		ray_tracing(t_env *obj, t_color *color)
 {
 	int				level;
-	unsigned		i;
 	double			t;
 
 	level = 0;
 	while ((obj->draw_data.coef > 0.0f) && (level < RAY_DEPTH))
 	{
 		t = 20000.0f;
-		obj->draw_data.cur_objs.cur_sphere = -1;
-		obj->draw_data.cur_objs.cur_cylinder = -1;
-		obj->draw_data.cur_objs.cur_cone = -1;
-		obj->draw_data.cur_objs.cur_plane = -1;
 		obj->draw_data.flip = 0;
-
-		i = 0;
-		// Search for ray intersection with obj in env
-		while (i < obj->scene.obj_count.sc)
-		{
-			if (ray_intersect_sphere(&obj->draw_data.ray, &obj->scene.objs.spheres[i], &t))
-				obj->draw_data.cur_objs.cur_sphere = i;
-			i++;
-		}
-		i = 0;
-		while (i < obj->scene.obj_count.cyc)
-		{
-			if (ray_intersect_cylinder(&obj->draw_data.ray, &obj->scene.objs.cylinders[i], &t, obj->draw_data.flip))
-			{
-				obj->draw_data.cur_objs.cur_sphere = -1;
-				obj->draw_data.cur_objs.cur_cylinder = i;
-			}
-			i++;
-		}
-		i = 0;
-		while (i < obj->scene.obj_count.cnc)
-		{
-			if (ray_intersect_cone(&obj->draw_data.ray, &obj->scene.objs.cones[i], &t, obj->draw_data.flip))
-			{
-				obj->draw_data.cur_objs.cur_sphere = -1;
-				obj->draw_data.cur_objs.cur_cylinder = -1;
-				obj->draw_data.cur_objs.cur_cone = i;
-			}
-			i++;
-		}
-		i = 0;
-		while (i < obj->scene.obj_count.pc)
-		{
-			if (ray_intersect_plane(&obj->draw_data.ray, &obj->scene.objs.planes[i], &t))
-			{
-				obj->draw_data.cur_objs.cur_sphere = -1;
-				obj->draw_data.cur_objs.cur_cylinder = -1;
-				obj->draw_data.cur_objs.cur_cone = -1;
-				obj->draw_data.cur_objs.cur_plane = i;
-			}
-			i++;
-		}
+		find_closest_obj(obj, &t);
 		if (!hit_obj(obj, color, t))
 			break;
 		if (!obj->draw_data.flip)
@@ -544,40 +632,60 @@ void		ray_tracing(t_env *obj, t_color *color)
 	}
 }
 
+int			set_draw_data(t_env *obj, unsigned x, unsigned y)
+{
+	t_vector		tmp;
+	t_vector		ans;
+
+	obj->draw_data.coef = 1.0;
+	tmp = vect_create(x, y, obj->scene.fov * 10);
+	obj->draw_data.ray.start = obj->scene.cam_pos;
+	vec_mult_mat(&tmp, obj->draw_data.g_mat, &ans);
+	obj->draw_data.ray.dir = vect_sub(&ans, &obj->draw_data.ray.start);
+	if (!vect_norm(&obj->draw_data.ray.dir))
+		return (0);
+	return (1);
+}
+
 void		trace_each_pixel(t_env *obj)
 {
-	t_vector		tmp, tmp1;
 	t_color			color;
-	int				x, y;
+	unsigned		x;
+	unsigned		y;
 
 	y = 0;
-	while (y < W_HEIGHT)
+	while (y < obj->scene.w_height)
 	{
 		x = 0;
-		while (x < W_WIDTH)
+		while (x < obj->scene.w_width)
 		{
-			obj->draw_data.coef = 1.0;
 			color = col_create(0, 0, 0);
-			tmp = vect_create(x, y, obj->scene.fov * 10); // FOV == the z of this vect_create
-			obj->draw_data.ray.start = obj->scene.cam_pos;
-			vec_mult_mat(&tmp, obj->draw_data.g_mat, &tmp1);
-			obj->draw_data.ray.dir = vect_sub(&tmp1, &obj->draw_data.ray.start);
-			if (!vect_norm(&obj->draw_data.ray.dir))
+			if (!set_draw_data(obj, x, y))
 				return;
 			ray_tracing(obj, &color);
 			correct_gamma(&color);
-			pixel_to_img(&obj->mlx, x, y, color);
-			x++;
+			pixel_to_img(&obj->mlx, x++, y, color);
 		}
 		y++;
 	}
 }
 
+void		setup_struct(t_env *obj)
+{
+	mat_identity(obj->draw_data.g_mat);
+	mat_rotate(obj->draw_data.g_mat, obj->scene.cam_rot.x, obj->scene.cam_rot.y,
+		obj->scene.cam_rot.z);
+	mat_translate(obj->draw_data.g_mat, obj->scene.cam_pos.x,
+		obj->scene.cam_pos.y, obj->scene.cam_pos.z);
+}
+
 int			run_img(t_env *obj)
 {
+	setup_struct(obj);
 	if (obj->mlx.img)
 		mlx_destroy_image(obj->mlx.mlx, obj->mlx.img);
-	obj->mlx.img = mlx_new_image(obj->mlx.mlx, W_WIDTH, W_HEIGHT);
+	obj->mlx.img = mlx_new_image(obj->mlx.mlx, obj->scene.w_width,
+		obj->scene.w_height);
 	obj->mlx.data = mlx_get_data_addr(obj->mlx.img, &obj->mlx.bits,
 		&obj->mlx.size_line, &obj->mlx.endian);
 	trace_each_pixel(obj);
@@ -585,18 +693,12 @@ int			run_img(t_env *obj)
 	return (0);
 }
 
-void		setup_struct(t_env *obj)
-{
-	mat_identity(obj->draw_data.g_mat);
-	mat_rotate(obj->draw_data.g_mat, obj->scene.cam_rot.x, obj->scene.cam_rot.y, obj->scene.cam_rot.z);
-	mat_translate(obj->draw_data.g_mat, obj->scene.cam_pos.x, obj->scene.cam_pos.y, obj->scene.cam_pos.z);
-}
-
 void		create_win(t_env *obj)
 {
-	setup_struct(obj);
-	obj->mlx.win = mlx_new_window(obj->mlx.mlx, W_WIDTH, W_HEIGHT, ft_strjoin("RTv1 - ", obj->scene.name));
-	obj->mlx.img = mlx_new_image(obj->mlx.mlx, W_WIDTH, W_HEIGHT);
+	obj->mlx.win = mlx_new_window(obj->mlx.mlx, obj->scene.w_width,
+		obj->scene.w_height, ft_strjoin("RTv1 - ", obj->scene.name));
+	obj->mlx.img = mlx_new_image(obj->mlx.mlx, obj->scene.w_width,
+		obj->scene.w_height);
 	mlx_hook(obj->mlx.win, 17, 0, exit_hook, obj);
 	mlx_hook(obj->mlx.win, 2, 0, my_key_press, obj);
 	// mlx_hook(obj->mlx.win, 3, 0, my_key_release, obj);
@@ -619,70 +721,91 @@ unsigned int	check_fd(char *av)
 	return (count == 0 ? (int)error(ft_strjoin(av, ": is empty")) : count);
 }
 
+unsigned		set_settings(unsigned *size)
+{
+	*size = 1;
+	return (SETTINGS);
+}
+
+unsigned		set_materials(t_scene *s, char *str, unsigned *size)
+{
+	*size = ft_atoi(str);
+	s->obj_count.mc = *size;
+	s->objs.materials = (t_mat*)malloc(sizeof(t_mat) * s->obj_count.mc);
+	if (!s->objs.materials)
+		return ((int)error("failed to malloc"));
+	return (MATERIALS);
+}
+
+unsigned		set_lights(t_scene *s, char *str, unsigned *size)
+{
+	*size = ft_atoi(str);
+	s->obj_count.lc = *size;
+	s->objs.lights = (t_light*)malloc(sizeof(t_light) * s->obj_count.lc);
+	if (!s->objs.lights)
+		return ((int)error("failed to malloc"));
+	return (LIGHTS);
+}
+
+unsigned		set_spheres(t_scene *s, char *str, unsigned *size)
+{
+	*size = ft_atoi(str);
+	s->obj_count.sc = *size;
+	s->objs.spheres = (t_sphere*)malloc(sizeof(t_sphere) * s->obj_count.sc);
+	if (!s->objs.spheres)
+		return ((int)error("failed to malloc"));
+	return (SPHERES);
+}
+
+unsigned		set_cylinders(t_scene *s, char *str, unsigned *size)
+{
+	*size = ft_atoi(str);
+	s->obj_count.cyc = *size;
+	s->objs.cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * s->obj_count.cyc);
+	if (!s->objs.cylinders)
+		return ((int)error("failed to malloc"));
+	return (CYLINDERS);
+}
+
+unsigned		set_cones(t_scene *s, char *str, unsigned *size)
+{
+	*size = ft_atoi(str);
+	s->obj_count.cnc = *size;
+	s->objs.cones = (t_cone*)malloc(sizeof(t_cone) * s->obj_count.cnc);
+	if (!s->objs.cones)
+		return ((int)error("failed to malloc"));
+	return (CONES);
+}
+
+unsigned		set_planes(t_scene *s, char *str, unsigned *size)
+{
+	*size = ft_atoi(str);
+	s->obj_count.pc = *size;
+	s->objs.planes = (t_plane*)malloc(sizeof(t_plane) * s->obj_count.pc);
+	if (!s->objs.planes)
+		return ((int)error("failed to malloc"));
+	return (PLANES);
+}
+
 unsigned		check_enum(t_scene *s, char *str, unsigned *size)
 {
 	char	**tmp; // mem delete this
 
 	tmp = ft_strsplit(str, ' ');
 	if (ft_strequ("settings:", str_low(str)))
-	{
-		*size = 1;
-		return (SETTINGS);
-	}
+		return (set_settings(size));
 	else if (ft_strequ("materials:", str_low(tmp[0])))
-	{
-		*size = ft_atoi(tmp[1]);
-		s->obj_count.mc = *size;
-		s->objs.materials = (t_mat*)malloc(sizeof(t_mat) * s->obj_count.mc);
-		if (!s->objs.materials)
-			return ((int)error("failed to malloc"));
-		return (MATERIALS);
-	}
+		return (set_materials(s, tmp[1], size));
 	else if (ft_strequ("lights:", str_low(tmp[0])))
-	{
-		*size = ft_atoi(tmp[1]);
-		s->obj_count.lc = *size;
-		s->objs.lights = (t_light*)malloc(sizeof(t_light) * s->obj_count.lc);
-		if (!s->objs.lights)
-			return ((int)error("failed to malloc"));
-		return (LIGHTS);
-	}
+		return (set_lights(s, tmp[1], size));
 	else if (ft_strequ("spheres:", str_low(tmp[0])))
-	{
-		*size = ft_atoi(tmp[1]);
-		s->obj_count.sc = *size;
-		s->objs.spheres = (t_sphere*)malloc(sizeof(t_sphere) * s->obj_count.sc);
-		if (!s->objs.spheres)
-			return ((int)error("failed to malloc"));
-		return (SPHERES);
-	}
+		return (set_spheres(s, tmp[1], size));
 	else if (ft_strequ("cylinders:", str_low(tmp[0])))
-	{
-		*size = ft_atoi(tmp[1]);
-		s->obj_count.cyc = *size;
-		s->objs.cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * s->obj_count.cyc);
-		if (!s->objs.cylinders)
-			return ((int)error("failed to malloc"));
-		return (CYLINDERS);
-	}
+		return (set_cylinders(s, tmp[1], size));
 	else if (ft_strequ("cones:", str_low(tmp[0])))
-	{
-		*size = ft_atoi(tmp[1]);
-		s->obj_count.cnc = *size;
-		s->objs.cones = (t_cone*)malloc(sizeof(t_cone) * s->obj_count.cnc);
-		if (!s->objs.cones)
-			return ((int)error("failed to malloc"));
-		return (CONES);
-	}
+		return (set_cones(s, tmp[1], size));
 	else if (ft_strequ("planes:", str_low(tmp[0])))
-	{
-		*size = ft_atoi(tmp[1]);
-		s->obj_count.pc = *size;
-		s->objs.planes = (t_plane*)malloc(sizeof(t_plane) * s->obj_count.pc);
-		if (!s->objs.planes)
-			return ((int)error("failed to malloc"));
-		return (PLANES);
-	}
+		return (set_planes(s, tmp[1], size));
 	return ((int)error(ft_strjoin(s->name, ": wrong category name")));
 }
 
@@ -728,7 +851,10 @@ t_vector		parse_tripple(char *str)
 
 	t_s = ft_strsplit(ft_strtrim(ft_strtrim(str, '('), ')'), ',');
 	if (t_s[2] && !t_s[3])
-		tmp = vect_create(parse_double(t_s[0]), parse_double(t_s[1]), parse_double(t_s[2]));
+	{
+		tmp = vect_create(parse_double(t_s[0]),
+			parse_double(t_s[1]), parse_double(t_s[2]));
+	}
 	else
 		tmp = vect_create(0, 0, 0);
 	return (tmp);
@@ -763,6 +889,8 @@ unsigned		store_settings(t_scene *s, char **str)
 		s->ray_depth = atoi(str[1]);
 	else if (ft_strequ("fov:", str[0]))
 		s->fov = atoi(str[1]);
+	else if (ft_strequ("shadows:", str[0]))
+		s->shadows = atoi(str[1]);
 	else if (ft_strequ("cam_pos:", str[0]))
 		s->cam_pos = parse_tripple(str[1]);
 	else if (ft_strequ("cam_rot:", str[0]))
@@ -908,7 +1036,10 @@ unsigned		store_props(t_scene *s, char *str, unsigned type, unsigned i)
 unsigned		check_size(t_scene *s, unsigned type, unsigned size)
 {
 	if (type == SETTINGS && size != 0)
-		return ((int)error(ft_strjoin(s->name, ": too many settings sections, only use 1 section")));
+	{
+		return ((int)error(ft_strjoin(s->name,
+			": too many settings sections, only use 1 section")));
+	}
 	else if (type == MATERIALS && size >= s->obj_count.mc)
 		return ((int)error(ft_strjoin(s->name, ": too many materials")));
 	else if (type == LIGHTS && size >= s->obj_count.lc)
