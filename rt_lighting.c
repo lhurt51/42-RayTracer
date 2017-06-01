@@ -15,10 +15,10 @@
 t_color		apply_specular(t_env *obj, t_ray light_ray, double light_proj,
 	double view_proj)
 {
-	t_vector blinn_dir;
-	t_color	rtn;
-	double tmp;
-	double blinn;
+	t_vector	blinn_dir;
+	t_color		rtn;
+	double		tmp;
+	double		blinn;
 
 	rtn = col_create(0, 0, 0);
 	blinn_dir = vect_sub(&light_ray.dir, &obj->draw_data.ray.dir);

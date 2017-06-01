@@ -78,7 +78,7 @@ typedef struct	s_objs
 
 typedef struct	s_scene
 {
-	char*		name;
+	char		*name;
 	t_vector	cam_pos;
 	t_vector	cam_rot;
 	t_objs		objs;
@@ -108,17 +108,17 @@ typedef struct	s_env
 	unsigned	w_num;
 }				t_env;
 
-/* HELPER */
-void		memdel_2d(char **str);
-/* HOOK */
-int			exit_hook(t_env *obj);
-int			my_key_press(int keycode, t_env *obj);
-/* PARSER */
-int			read_file(char *av, t_scene *scene);
-/* MLX */
-void		pixel_to_img(t_mlx *obj, int x, int y, t_color color);
-void		create_win(t_env *obj);
-/* RT */
-void		trace_each_pixel(t_env *obj);
+void			memdel_2d(char **str);
+
+int				exit_hook(t_env *obj);
+int				my_key_press(int keycode, t_env *obj);
+
+int				read_file(char *av, t_scene *scene);
+
+void			pixel_to_img(t_mlx *obj, int x, int y, t_color color);
+int				run_img(t_env *obj);
+void			create_win(t_env *obj);
+
+void			trace_each_pixel(t_env *obj);
 
 #endif

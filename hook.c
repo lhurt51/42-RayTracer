@@ -12,7 +12,7 @@
 
 #include "includes/rtv1.h"
 
-int				exit_hook(t_env *obj)
+int		exit_hook(t_env *obj)
 {
 	static unsigned i = 0;
 
@@ -44,16 +44,23 @@ int		my_key_press(int keycode, t_env *obj)
 {
 	if (keycode == 53)
 		exit_hook(obj);
-	// if (keycode == 257)
-	// 	obj->mlx.keys.shift = 1;
-	// if (keycode == 0)
-	// 	obj->mlx.keys.a = 1;
-	// if (keycode == 1)
-	// 	obj->mlx.keys.s = 1;
-	// if (keycode == 2)
-	// 	obj->mlx.keys.d = 1;
-	// if (keycode == 13)
-	// 	obj->mlx.keys.w = 1;
+	if (keycode == 49)
+		obj->scene.shadows = (obj->scene.shadows != 0) ? 0 : 1;
+	if (keycode == 24 && obj->scene.ray_depth < 20)
+		obj->scene.ray_depth += 1;
+	if (keycode == 27 && obj->scene.ray_depth > 1)
+		obj->scene.ray_depth -= 1;
+	if (keycode == 257)
+		obj->mlx.keys.shift = 1;
+	if (keycode == 0)
+		obj->mlx.keys.a = 1;
+	if (keycode == 1)
+		obj->mlx.keys.s = 1;
+	if (keycode == 2)
+		obj->mlx.keys.d = 1;
+	if (keycode == 13)
+		obj->mlx.keys.w = 1;
+	run_img(obj);
 	return (0);
 }
 

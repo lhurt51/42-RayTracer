@@ -26,7 +26,8 @@ unsigned		set_cylinders(t_scene *s, char *str, unsigned *size)
 {
 	*size = ft_atoi(str);
 	s->obj_count.cyc = *size;
-	s->objs.cylinders = (t_cylinder*)malloc(sizeof(t_cylinder) * s->obj_count.cyc);
+	s->objs.cylinders = (t_cylinder*)malloc(sizeof(t_cylinder)
+		* s->obj_count.cyc);
 	if (!s->objs.cylinders)
 		return ((int)error("failed to malloc"));
 	return (CYLINDERS);

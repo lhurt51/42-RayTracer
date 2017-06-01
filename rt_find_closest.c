@@ -50,7 +50,7 @@ int			hit_obj(t_env *obj, t_color *color, double t)
 
 void		find_closest_obj(t_env *obj, double *t)
 {
-	int 	i;
+	int		i;
 
 	obj->draw_data.cur_objs.cur_index = -1;
 	obj->draw_data.cur_objs.cur_obj = NONE;

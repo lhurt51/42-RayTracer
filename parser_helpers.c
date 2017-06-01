@@ -12,7 +12,7 @@
 
 #include "includes/parser.h"
 
-unsigned int	check_fd(char *av)
+unsigned	check_fd(char *av)
 {
 	int				fd;
 	char			*tmp;
@@ -38,7 +38,7 @@ t_color		parse_color(char *str)
 	return (rtn);
 }
 
-t_vector		parse_rot(char *str)
+t_vector	parse_rot(char *str)
 {
 	t_vector	tmp;
 

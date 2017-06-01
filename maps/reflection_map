@@ -1,0 +1,77 @@
+SETTINGS:
+	width: 1080
+	height: 720
+	ray_depth: 15
+	fov: 90
+	shadows: 0
+	cam_pos: (0,-200,-500)
+	cam_rot: (0,0,0)
+
+MATERIALS: 4
+	diffuse: (0.3,0.3,0.3)
+	specular: (0.5,0.5,0.5)
+	reflection: 0.9
+	power: 60
+
+	diffuse: (0,0,1)
+	specular: (0.1,0.1,0.1)
+	reflection: 0.9
+	power: 60
+
+	diffuse: (0,1,0)
+	specular: (1,1,1)
+	reflection: 0.9
+	power: 60
+
+	diffuse: (1,0,0)
+	specular: (1,1,1)
+	reflection: 0.4
+	power: 60
+
+LIGHTS: 1
+	pos: (0,-200,-200)
+	intensity: (1,1,1)
+
+SPHERES: 4
+	pos: (200,0,100)
+	radius: 50
+	mat: 0
+
+	pos: (100,0,100)
+	radius: 50
+	mat: 2
+
+	pos: (150,-75,150)
+	radius: 50
+	mat: 1
+
+	pos: (150,0,200)
+	radius: 50
+	mat: 1
+
+CYLINDERS: 0
+CONES: 0
+PLANES: 6
+	pos: (0,0,400)
+	rot: (0,0,0)
+	mat: 3
+
+	pos: (0,0,-600)
+	rot: (0,0,0)
+	mat: 3
+
+	pos: (0,50,0)
+	rot: (90,0,0)
+	mat: 3
+
+	pos: (0,-400,0)
+	rot: (270,0,0)
+	mat: 3
+
+	pos: (250,0,0)
+	rot: (0,90,0)
+	mat: 3
+
+	pos: (-250,0,0)
+	rot: (0,90,0)
+	mat: 3

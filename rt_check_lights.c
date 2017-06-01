@@ -40,9 +40,13 @@ void		handle_light(t_env *obj, t_color *color)
 		obj->draw_data.cur_objs.cur_light = obj->scene.objs.lights[i++];
 		light_ray.dir = vect_sub(&obj->draw_data.cur_objs.cur_light.pos,
 			&obj->draw_data.ray.start);
-		if ((light_proj = vect_dot(&light_ray.dir,&obj->draw_data.norm)) > 0.0f)
+		if ((light_proj = vect_dot(&light_ray.dir, &obj->draw_data.norm))
+			> 0.0f)
 			if ((t = vect_norm(&light_ray.dir)))
+			{
+				light_proj *= INVSQRTF(t);
 				if (!check_shadows(obj, &light_ray, &t) || !obj->scene.shadows)
-					apply_light(obj, &light_ray, color, INVSQRTF(t)*light_proj);
+					apply_light(obj, &light_ray, color, light_proj);
+			}
 	}
 }

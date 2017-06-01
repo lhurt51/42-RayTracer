@@ -13,16 +13,16 @@
 #ifndef OBJ_H
 # define OBJ_H
 
-enum			e_obj
+enum	e_obj
 {
-				NONE,
-				SETTINGS,
-				MATERIALS,
-				LIGHTS,
-				SPHERES,
-				CYLINDERS,
-				CONES,
-				PLANES
+	NONE,
+	SETTINGS,
+	MATERIALS,
+	LIGHTS,
+	SPHERES,
+	CYLINDERS,
+	CONES,
+	PLANES
 };
 
 typedef struct	s_mat

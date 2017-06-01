@@ -35,7 +35,7 @@ void		ray_tracing(t_env *obj, t_color *color)
 		obj->draw_data.flip = 0;
 		find_closest_obj(obj, &t);
 		if (!hit_obj(obj, color, t))
-			break;
+			break ;
 		if (!obj->draw_data.flip)
 		{
 			handle_light(obj, color);
@@ -74,7 +74,7 @@ void		trace_each_pixel(t_env *obj)
 		{
 			color = col_create(0, 0, 0);
 			if (!set_draw_data(obj, x, y))
-				return;
+				return ;
 			ray_tracing(obj, &color);
 			correct_gamma(&color);
 			pixel_to_img(&obj->mlx, x++, y, color);

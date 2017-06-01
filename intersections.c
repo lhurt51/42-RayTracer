@@ -31,7 +31,7 @@ int			ray_intersect_sphere(t_ray *ray, t_sphere *sphere, double *t)
 
 int			find_closest_sphere(t_env *obj, t_ray *ray, double *t)
 {
-	unsigned 	i;
+	unsigned	i;
 	int			rtn;
 
 	i = 0;
@@ -46,7 +46,8 @@ int			find_closest_sphere(t_env *obj, t_ray *ray, double *t)
 	return (rtn);
 }
 
-int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t, int flip)
+int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t,
+	int flip)
 {
 	t_vector	dist;
 	t_vector	cr;
@@ -74,7 +75,7 @@ int			ray_intersect_cylinder(t_ray *ray, t_cylinder *c, double *t, int flip)
 
 int			find_closest_cylinder(t_env *obj, t_ray *ray, double *t)
 {
-	unsigned 	i;
+	unsigned	i;
 	int			rtn;
 
 	i = 0;

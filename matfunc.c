@@ -58,13 +58,3 @@ void	mat_scale(float matrix[4][4], float sx, float sy, float sz)
 	mat_mult(matrix, smat, tmp);
 	mat_copy(tmp, matrix);
 }
-
-// void	project(t_vertex *vertex)
-// {
-// 	if (!vertex->aligned.z)
-// 		vertex->aligned.z = 1;
-// 	vertex->screen.x = FOCAL_DISTANCE * vertex->aligned.x / vertex->aligned.z +
-// 	W_XORIGIN;
-// 	vertex->screen.y = FOCAL_DISTANCE * vertex->aligned.y / vertex->aligned.z +
-// 	W_YORIGIN;
-// }

@@ -13,16 +13,16 @@
 #include "includes/rtv1.h"
 #include "includes/mat.h"
 
-void	pixel_to_img(t_mlx *obj, int x, int y, t_color color)
+void		pixel_to_img(t_mlx *obj, int x, int y, t_color color)
 {
 	int		i;
 
 	i = (x * 4) + (y * obj->size_line);
 	if (i > 0)
 	{
-		obj->data[i++] = (unsigned char)MIN(color.blue*255.0f, 255.0f);
-		obj->data[i++] = (unsigned char)MIN(color.green*255.0f, 255.0f);
-		obj->data[i] = (unsigned char)MIN(color.red*255.0f, 255.0f);
+		obj->data[i++] = (unsigned char)MIN(color.blue * 255.0f, 255.0f);
+		obj->data[i++] = (unsigned char)MIN(color.green * 255.0f, 255.0f);
+		obj->data[i] = (unsigned char)MIN(color.red * 255.0f, 255.0f);
 	}
 }
 
@@ -57,6 +57,6 @@ void		create_win(t_env *obj)
 		obj->scene.w_height);
 	mlx_hook(obj->mlx.win, 17, 0, exit_hook, obj);
 	mlx_hook(obj->mlx.win, 2, 0, my_key_press, obj);
-	// mlx_hook(obj->mlx.win, 3, 0, my_key_release, obj);
+	mlx_hook(obj->mlx.win, 17, 0, exit_hook, obj);
 	mlx_expose_hook(obj->mlx.win, run_img, obj);
 }

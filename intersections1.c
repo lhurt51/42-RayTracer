@@ -20,12 +20,12 @@ int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t, int flip)
 	double		tmp[4];
 
 	dist = vect_sub(&ray->start, &cn->pos);
-	a = vect_dot(&ray->dir,&ray->dir)-((1+SQ(cn->radius)))
-		*vect_dot(&ray->dir,&cn->rot)*vect_dot(&ray->dir,&cn->rot);
-	b = 2*(vect_dot(&ray->dir,&dist)-((1+SQ(cn->radius)))
-		*vect_dot(&ray->dir,&cn->rot)*vect_dot(&dist,&cn->rot));
-	tmp[3] = SQ(b)-4*a*(vect_dot(&dist,&dist)-((1+SQ(cn->radius)))
-		*vect_dot(&dist,&cn->rot)*vect_dot(&dist,&cn->rot));
+	a = vect_dot(&ray->dir, &ray->dir) - ((1 + SQ(cn->radius)))
+		* vect_dot(&ray->dir, &cn->rot) * vect_dot(&ray->dir, &cn->rot);
+	b = 2 * (vect_dot(&ray->dir, &dist) - ((1 + SQ(cn->radius)))
+		* vect_dot(&ray->dir, &cn->rot) * vect_dot(&dist, &cn->rot));
+	tmp[3] = SQ(b) - 4 * a * (vect_dot(&dist, &dist) - ((1 + SQ(cn->radius)))
+		* vect_dot(&dist, &cn->rot) * vect_dot(&dist, &cn->rot));
 	if (tmp[3] == 0.0f)
 		tmp[2] = (-b + sqrtf(tmp[3])) / (2 * a);
 	else if (tmp[3] > 0.0f)
@@ -42,7 +42,7 @@ int			ray_intersect_cone(t_ray *ray, t_cone *cn, double *t, int flip)
 
 int			find_closest_cone(t_env *obj, t_ray *ray, double *t)
 {
-	unsigned 	i;
+	unsigned	i;
 	int			rtn;
 
 	i = 0;
@@ -51,7 +51,7 @@ int			find_closest_cone(t_env *obj, t_ray *ray, double *t)
 	{
 		if (ray_intersect_cone(ray, &obj->scene.objs.cones[i],
 			t, obj->draw_data.flip))
-		 	rtn = i;
+			rtn = i;
 		i++;
 	}
 	return (rtn);
@@ -74,7 +74,7 @@ int			ray_intersect_plane(t_ray *ray, t_plane *p, double *t)
 
 int			find_closest_plane(t_env *obj, t_ray *ray, double *t)
 {
-	unsigned 	i;
+	unsigned	i;
 	int			rtn;
 
 	i = 0;
@@ -83,7 +83,7 @@ int			find_closest_plane(t_env *obj, t_ray *ray, double *t)
 	{
 		if (ray_intersect_plane(ray,
 			&obj->scene.objs.planes[i], t))
-	 		rtn = i;
+			rtn = i;
 		i++;
 	}
 	return (rtn);
