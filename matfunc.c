@@ -10,7 +10,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "rtv1.h"
+#include "includes/rtv1.h"
+#include "includes/mat.h"
 
 void	mat_identity(float mat[4][4])
 {

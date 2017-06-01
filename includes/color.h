@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   color.h                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,19 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#ifndef COLOR_H
+# define COLOR_H
 
-void		memdel_2d(char **str)
+typedef struct	s_color
 {
-	unsigned	i;
+	double		red;
+	double		green;
+	double		blue;
+}				t_color;
 
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
-}
+t_color			col_create(double r, double g, double b);
+t_color			col_mul_coef(t_color *c1, double coef);
+t_color			col_add(t_color *c1, t_color *c2);
+t_color			col_mul(t_color *c1, t_color *c2);
 
-int			main(int argc, char **argv)
-{
-	t_env		*obj;
-	void		*mlx;
-	int			i;
-
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
-	return (0);
-}
+#endif

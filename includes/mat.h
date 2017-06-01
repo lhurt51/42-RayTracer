@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   ray_trace.h                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,15 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#ifndef MAT_H
+# define MAT_H
 
-void		memdel_2d(char **str)
-{
-	unsigned	i;
+void		mat_identity(float mat[4][4]);
+void		mat_copy(float source[4][4], float dest[4][4]);
+void		mat_mult(float mata[4][4], float matb[4][4], float dest[4][4]);
+void		mat_translate(float matrix[4][4], float tx, float ty, float tz);
+void		mat_scale(float matrix[4][4], float sx, float sy, float sz);
+void		mat_rotate(float matrix[4][4], float ax, float ay, float az);
+void		vec_mult_mat(t_vector *source, float mat[4][4], t_vector *dest);
 
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
-}
-
-int			main(int argc, char **argv)
-{
-	t_env		*obj;
-	void		*mlx;
-	int			i;
-
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
-	return (0);
-}
+#endif

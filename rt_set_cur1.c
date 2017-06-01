@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   rt_set_cur.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,33 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#include "includes/ray_trace.h"
 
-void		memdel_2d(char **str)
+int			set_cur_plane(t_env *obj)
 {
-	unsigned	i;
+	t_plane		cur;
 
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
+	cur = obj->scene.objs.planes[obj->draw_data.cur_objs.cur_index];
+	obj->draw_data.cur_objs.cur_mat = obj->scene.objs.materials[cur.mat];
+	obj->draw_data.norm = cur.rot;
+	if (vect_dot(&obj->draw_data.ray.dir, &cur.rot) > 0.0f)
+	{
+		obj->draw_data.norm = vect_scale(-1.0f, &obj->draw_data.norm);
+		obj->draw_data.flip = 1;
+	}
+	else
+		obj->draw_data.flip = 0;
+	if (!vect_norm(&obj->draw_data.norm))
+		return (0);
+	return (1);
 }
 
-int			main(int argc, char **argv)
+int			set_background(t_env *obj, t_color *color)
 {
-	t_env		*obj;
-	void		*mlx;
-	int			i;
+	t_color		test;
 
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
+	test = col_create(0, 0, 0);
+	test = col_mul_coef(&test, obj->draw_data.coef);
+	*color = col_add(color, &test);
 	return (0);
 }

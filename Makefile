@@ -37,9 +37,30 @@ LFLAG =		-L libftprintf/ -lft
 NAME =		RTv1
 
 SRCS =		main.c \
+			mlx.c \
+			hook.c \
+			color.c \
+			vector.c \
+			vector1.c \
+			parser.c \
+			parser_helpers.c \
+			parser_helpers1.c \
+			parser_setup.c \
+			parser_setup1.c \
+			parser_store.c \
+			parser_store1.c \
+			parser_store2.c \
 			matfunc.c \
 			matfunc1.c \
 			matrot.c \
+			ray_trace.c \
+			rt_lighting.c \
+			rt_check_lights.c \
+			rt_set_cur.c \
+			rt_set_cur1.c \
+			rt_find_closest.c \
+			intersections.c \
+			intersections1.c \
 
 FDIR = 		frame/
 

@@ -10,7 +10,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "rtv1.h"
+#include "includes/rtv1.h"
+#include "includes/mat.h"
 
 void	rot_xaxis(float tmp1[4][4], float tmp2[4][4], float ax)
 {

@@ -4,7 +4,7 @@ SETTINGS:
 	ray_depth: 15
 	fov: 100
 	shadows: 1
-	cam_pos: (0,0,-2000)
+	cam_pos: (0,0,-1000)
 	cam_rot: (0,0,0)
 
 MATERIALS: 4

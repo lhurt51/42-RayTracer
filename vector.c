@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   vector.c                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,44 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#include "includes/vector.h"
 
-void		memdel_2d(char **str)
+t_vector	vect_create(double x, double y, double z)
 {
-	unsigned	i;
+	t_vector	vect;
 
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
+	vect.x = x;
+	vect.y = y;
+	vect.z = z;
+	return (vect);
 }
 
-int			main(int argc, char **argv)
+t_vector	vect_sub(t_vector *v1, t_vector *v2)
 {
-	t_env		*obj;
-	void		*mlx;
-	int			i;
+	t_vector	res;
 
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
-	return (0);
+	res.x = v1->x - v2->x;
+	res.y = v1->y - v2->y;
+	res.z = v1->z - v2->z;
+	return (res);
+}
+
+t_vector	vect_add(t_vector *v1, t_vector *v2)
+{
+	t_vector	res;
+
+	res.x = v1->x + v2->x;
+	res.y = v1->y + v2->y;
+	res.z = v1->z + v2->z;
+	return (res);
+}
+
+t_vector	vect_scale(double scale, t_vector *v)
+{
+	t_vector	res;
+
+	res.x = v->x * scale;
+	res.y = v->y * scale;
+	res.z = v->z * scale;
+	return (res);
 }

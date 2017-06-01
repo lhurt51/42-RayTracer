@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   parser_helpers.c                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,39 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#include "includes/parser.h"
 
-void		memdel_2d(char **str)
+unsigned int	check_fd(char *av)
 {
-	unsigned	i;
+	int				fd;
+	char			*tmp;
+	unsigned int	count;
 
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
+	count = 0;
+	fd = open(av, O_RDONLY);
+	if (fd < 0)
+		return ((int)error(ft_strjoin(av, ": failed to open")));
+	while (get_next_line(fd, &tmp))
+		count++;
+	close(fd);
+	return (count == 0 ? (int)error(ft_strjoin(av, ": is empty")) : count);
 }
 
-int			main(int argc, char **argv)
+t_color		parse_color(char *str)
 {
-	t_env		*obj;
-	void		*mlx;
-	int			i;
+	t_vector	tmp;
+	t_color		rtn;
 
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
-	return (0);
+	tmp = parse_tripple(str);
+	rtn = col_create(tmp.x, tmp.y, tmp.z);
+	return (rtn);
+}
+
+t_vector		parse_rot(char *str)
+{
+	t_vector	tmp;
+
+	tmp = parse_tripple(str);
+	tmp = vect_scale(M_PI / 180, &tmp);
+	return (tmp);
 }

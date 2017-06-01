@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   parser_setup1.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,30 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#include "includes/parser.h"
 
-void		memdel_2d(char **str)
+unsigned		set_settings(unsigned *size)
 {
-	unsigned	i;
-
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
+	*size = 1;
+	return (SETTINGS);
 }
 
-int			main(int argc, char **argv)
+unsigned		set_materials(t_scene *s, char *str, unsigned *size)
 {
-	t_env		*obj;
-	void		*mlx;
-	int			i;
+	*size = ft_atoi(str);
+	s->obj_count.mc = *size;
+	s->objs.materials = (t_mat*)malloc(sizeof(t_mat) * s->obj_count.mc);
+	if (!s->objs.materials)
+		return ((int)error("failed to malloc"));
+	return (MATERIALS);
+}
 
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
-	return (0);
+unsigned		set_lights(t_scene *s, char *str, unsigned *size)
+{
+	*size = ft_atoi(str);
+	s->obj_count.lc = *size;
+	s->objs.lights = (t_light*)malloc(sizeof(t_light) * s->obj_count.lc);
+	if (!s->objs.lights)
+		return ((int)error("failed to malloc"));
+	return (LIGHTS);
 }

@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   parser_store2.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,32 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#include "includes/parser.h"
+#include "includes/mat.h"
 
-void		memdel_2d(char **str)
+t_vector		rot_plane(char *rot)
 {
-	unsigned	i;
+	t_vector	rtn;
+	t_vector	tmp;
+	float		mat[4][4];
 
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
+	tmp = vect_create(0, 0, -1);
+	rtn = parse_rot(rot);
+	mat_identity(mat);
+	mat_rotate(mat, rtn.x, rtn.y, rtn.z);
+	vec_mult_mat(&tmp, mat, &rtn);
+	return (rtn);
 }
 
-int			main(int argc, char **argv)
+unsigned		store_planes(t_scene *s, char **str, unsigned i)
 {
-	t_env		*obj;
-	void		*mlx;
-	int			i;
-
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
-	return (0);
+	if (ft_strequ("pos:", str[0]))
+		s->objs.planes[i].pos = parse_tripple(str[1]);
+	else if (ft_strequ("rot:", str[0]))
+		s->objs.planes[i].rot = rot_plane(str[1]);
+	else if (ft_strequ("mat:", str[0]))
+		s->objs.planes[i].mat = atoi(str[1]);
+	else
+		return ((int)error(ft_strjoin(s->name, ": wrong plane properties")));
+	return (1);
 }

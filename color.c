@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   color.c                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lhurt <marvin@42.fr>                       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,37 +10,44 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "includes/rtv1.h"
+#include "includes/color.h"
 
-void		memdel_2d(char **str)
+t_color		col_create(double r, double g, double b)
 {
-	unsigned	i;
+	t_color		color;
 
-	i = 0;
-	while (str[i])
-		ft_strdel(&str[i++]);
-	ft_memdel((void**)&str);
+	color.red = r;
+	color.green = g;
+	color.blue = b;
+	return (color);
 }
 
-int			main(int argc, char **argv)
+t_color		col_mul_coef(t_color *c1, double coef)
 {
-	t_env		*obj;
-	void		*mlx;
-	int			i;
+	t_color		res;
 
-	i = 0;
-	mlx = mlx_init();
-	while (i < argc - 1 && argc < 5)
-	{
-		obj = malloc(sizeof(t_env));
-		if (!obj)
-			return ((int)error("failed to malloc"));
-		obj->mlx.mlx = mlx;
-		obj->w_num = argc - 1;
-		if (read_file(argv[i + 1], &obj->scene))
-			create_win(obj);
-		i++;
-	}
-	mlx_loop(mlx);
-	return (0);
+	res.red = c1->red * coef;
+	res.green = c1->green * coef;
+	res.blue = c1->blue * coef;
+	return (res);
+}
+
+t_color		col_add(t_color *c1, t_color *c2)
+{
+	t_color		res;
+
+	res.red = c1->red + c2->red;
+	res.green = c1->green + c2->green;
+	res.blue = c1->blue + c2->blue;
+	return (res);
+}
+
+t_color		col_mul(t_color *c1, t_color *c2)
+{
+	t_color		res;
+
+	res.red = c1->red * c2->red;
+	res.green = c1->green * c2->green;
+	res.blue = c1->blue * c2->blue;
+	return (res);
 }
